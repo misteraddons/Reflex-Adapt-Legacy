@@ -5,17 +5,17 @@
 
 #include "MPG.h"
 
-// static PS3Report ps3Report
-// {
-// 	.square_btn = 0, .cross_btn = 0, .circle_btn = 0, .triangle_btn = 0,
-// 	.l1_btn = 0, .r1_btn = 0, .l2_btn = 0, .r2_btn = 0,
-// 	.select_btn = 0, .start_btn = 0, .l3_btn = 0, .r3_btn = 0, .ps_btn = 0,
-// 	.direction = 0x08,
-// 	.l_x_axis = 0x80, .l_y_axis = 0x80, .r_x_axis = 0x80, .r_y_axis = 0x80,
-// 	.right_axis = 0x00, .left_axis = 0x00, .up_axis = 0x00, .down_axis = 0x00,
-// 	.triangle_axis = 0x00, .circle_axis = 0x00, .cross_axis = 0x00, .square_axis = 0x00,
-// 	.l1_axis = 0x00, .r1_axis = 0x00, .l2_axis = 0x00, .r2_axis = 0x00
-// };
+static PS3Report ps3Report
+{
+	.square_btn = 0, .cross_btn = 0, .circle_btn = 0, .triangle_btn = 0,
+	.l1_btn = 0, .r1_btn = 0, .l2_btn = 0, .r2_btn = 0,
+	.select_btn = 0, .start_btn = 0, .l3_btn = 0, .r3_btn = 0, .ps_btn = 0,
+	.direction = 0x08,
+	.l_x_axis = 0x80, .l_y_axis = 0x80, .r_x_axis = 0x80, .r_y_axis = 0x80,
+	.right_axis = 0x00, .left_axis = 0x00, .up_axis = 0x00, .down_axis = 0x00,
+	.triangle_axis = 0x00, .circle_axis = 0x00, .cross_axis = 0x00, .square_axis = 0x00,
+	.l1_axis = 0x00, .r1_axis = 0x00, .l2_axis = 0x00, .r2_axis = 0x00
+};
 
 static HIDReport hidReport
 {
@@ -113,8 +113,8 @@ void *MPG::getReport(const uint8_t index)
 		case INPUT_MODE_SWITCH:
 			return getSwitchReport(index);
 
-		// case INPUT_MODE_PS3:
-		// 	return getPS3Report(index);
+		case INPUT_MODE_PS3:
+			return getPS3Report(index);
 
 		case INPUT_MODE_HID_NEGCON:
 			return getNegconReport(index);
@@ -149,8 +149,8 @@ uint16_t MPG::getReportSize(const uint8_t index)
 		case INPUT_MODE_SWITCH:
 			return sizeof(SwitchReport);
 
-		// case INPUT_MODE_PS3:
-		// 	return sizeof(PS3Report);
+		case INPUT_MODE_PS3:
+			return sizeof(PS3Report);
 
 		case INPUT_MODE_HID_NEGCON:
 			return sizeof(NegconReport);
@@ -175,54 +175,70 @@ uint16_t MPG::getReportSize(const uint8_t index)
 }
 
 
-// PS3Report *MPG::getPS3Report(const uint8_t index)
-// {
-// 	switch (state[index].dpad & GAMEPAD_MASK_DPAD)
-// 	{
-// 		case GAMEPAD_MASK_UP:                        ps3Report.direction = HID_HAT_UP;        break;
-// 		case GAMEPAD_MASK_UP | GAMEPAD_MASK_RIGHT:   ps3Report.direction = HID_HAT_UPRIGHT;   break;
-// 		case GAMEPAD_MASK_RIGHT:                     ps3Report.direction = HID_HAT_RIGHT;     break;
-// 		case GAMEPAD_MASK_DOWN | GAMEPAD_MASK_RIGHT: ps3Report.direction = HID_HAT_DOWNRIGHT; break;
-// 		case GAMEPAD_MASK_DOWN:                      ps3Report.direction = HID_HAT_DOWN;      break;
-// 		case GAMEPAD_MASK_DOWN | GAMEPAD_MASK_LEFT:  ps3Report.direction = HID_HAT_DOWNLEFT;  break;
-// 		case GAMEPAD_MASK_LEFT:                      ps3Report.direction = HID_HAT_LEFT;      break;
-// 		case GAMEPAD_MASK_UP | GAMEPAD_MASK_LEFT:    ps3Report.direction = HID_HAT_UPLEFT;    break;
-// 		default:                                     ps3Report.direction = HID_HAT_NOTHING;   break;
-// 	}
+PS3Report *MPG::getPS3Report(const uint8_t index)
+{
+	// Handle D-pad direction
+	switch (state[index].dpad & GAMEPAD_MASK_DPAD)
+	{
+		case GAMEPAD_MASK_UP:                        ps3Report.direction = HID_HAT_UP;        break;
+		case GAMEPAD_MASK_UP | GAMEPAD_MASK_RIGHT:   ps3Report.direction = HID_HAT_UPRIGHT;   break;
+		case GAMEPAD_MASK_RIGHT:                     ps3Report.direction = HID_HAT_RIGHT;     break;
+		case GAMEPAD_MASK_DOWN | GAMEPAD_MASK_RIGHT: ps3Report.direction = HID_HAT_DOWNRIGHT; break;
+		case GAMEPAD_MASK_DOWN:                      ps3Report.direction = HID_HAT_DOWN;      break;
+		case GAMEPAD_MASK_DOWN | GAMEPAD_MASK_LEFT:  ps3Report.direction = HID_HAT_DOWNLEFT;  break;
+		case GAMEPAD_MASK_LEFT:                      ps3Report.direction = HID_HAT_LEFT;      break;
+		case GAMEPAD_MASK_UP | GAMEPAD_MASK_LEFT:    ps3Report.direction = HID_HAT_UPLEFT;    break;
+		default:                                     ps3Report.direction = HID_HAT_NOTHING;   break;
+	}
 
-// 	ps3Report.cross_btn    = pressedB1(index);
-// 	ps3Report.circle_btn   = pressedB2(index);
-// 	ps3Report.square_btn   = pressedB3(index);
-// 	ps3Report.triangle_btn = pressedB4(index);
-// 	ps3Report.l1_btn       = pressedL1(index);
-// 	ps3Report.r1_btn       = pressedR1(index);
-// 	ps3Report.l2_btn       = pressedL2(index);
-// 	ps3Report.r2_btn       = pressedR2(index);
-// 	ps3Report.select_btn   = pressedS1(index);
-// 	ps3Report.start_btn    = pressedS2(index);
-// 	ps3Report.l3_btn       = pressedL3(index);
-// 	ps3Report.r3_btn       = pressedR3(index);
-// 	ps3Report.ps_btn       = pressedA1(index);
-// //	ps3Report.cross_btn = pressedA2();
+	// Digital button mapping - only for non-analog buttons
+	ps3Report.select_btn   = pressedS1(index);
+	ps3Report.start_btn    = pressedS2(index);
+	ps3Report.l3_btn       = pressedL3(index);
+	ps3Report.r3_btn       = pressedR3(index);
+	ps3Report.ps_btn       = pressedA1(index);
 
-// 	ps3Report.l_x_axis = static_cast<uint8_t>(state[index].lx >> 8);
-// 	ps3Report.l_y_axis = static_cast<uint8_t>(state[index].ly >> 8);
-// 	ps3Report.r_x_axis = static_cast<uint8_t>(state[index].rx >> 8);
-// 	ps3Report.r_y_axis = static_cast<uint8_t>(state[index].ry >> 8);
+	// Analog sticks (standard mapping)
+	ps3Report.l_x_axis = static_cast<uint8_t>(state[index].lx >> 8);
+	ps3Report.l_y_axis = static_cast<uint8_t>(state[index].ly >> 8);
+	ps3Report.r_x_axis = static_cast<uint8_t>(state[index].rx >> 8);
+	ps3Report.r_y_axis = static_cast<uint8_t>(state[index].ry >> 8);
 
-// 	if (hasAnalogTriggers[index])
-// 	{
-// 		ps3Report.l2_axis = state[index].lt;
-// 		ps3Report.r2_axis = state[index].rt;
-// 	}
-// 	else
-// 	{
-// 		ps3Report.l2_axis = pressedL2(index) * 0xFF;
-// 		ps3Report.r2_axis = pressedR2(index) * 0xFF;
-// 	}
+	// DS2→PS3 FULL ANALOG BUTTON MAPPING
+	// Map all 12 DS2 pressure buttons to PS3 analog fields
+	// DS2 order: R, L, Up, Down, Triangle, Circle, Cross, Square, L1, R1, L2, R2
 
-// 	return &ps3Report;
-// }
+	// D-pad analog values (indices 0-3)
+	ps3Report.right_axis = state[index].pressureRight;
+	ps3Report.left_axis = state[index].pressureLeft;
+	ps3Report.up_axis = state[index].pressureUp;
+	ps3Report.down_axis = state[index].pressureDown;
+
+	// Face button analog values (indices 4-7)
+	ps3Report.triangle_axis = state[index].pressureTriangle;
+	ps3Report.circle_axis = state[index].pressureCircle;
+	ps3Report.cross_axis = state[index].pressureCross;
+	ps3Report.square_axis = state[index].pressureSquare;
+
+	// Shoulder button analog values (indices 8-11)
+	ps3Report.l1_axis = state[index].pressureL1;
+	ps3Report.r1_axis = state[index].pressureR1;
+	ps3Report.l2_axis = state[index].pressureL2;
+	ps3Report.r2_axis = state[index].pressureR2;
+
+	// Digital button fallbacks: Set digital bits based on analog values
+	// Only set digital bit if analog value is above threshold (> 127)
+	ps3Report.triangle_btn = (state[index].pressureTriangle > 127) ? 1 : 0;
+	ps3Report.circle_btn = (state[index].pressureCircle > 127) ? 1 : 0;
+	ps3Report.cross_btn = (state[index].pressureCross > 127) ? 1 : 0;
+	ps3Report.square_btn = (state[index].pressureSquare > 127) ? 1 : 0;
+	ps3Report.l1_btn = (state[index].pressureL1 > 127) ? 1 : 0;
+	ps3Report.r1_btn = (state[index].pressureR1 > 127) ? 1 : 0;
+	ps3Report.l2_btn = (state[index].pressureL2 > 127) ? 1 : 0;
+	ps3Report.r2_btn = (state[index].pressureR2 > 127) ? 1 : 0;
+
+	return &ps3Report;
+}
 
 SwitchReport *MPG::getSwitchReport(const uint8_t index)
 {
@@ -324,13 +340,9 @@ HIDReport *MPG::getHIDReport(const uint8_t index)
 
 	hidReport.buttons = 0
 		| (pressedB1(index) ? BTN_A      : 0)
-		| (pressedB2(index) ? BTN_B      : 0)
-		| (pressedB3(index) ? BTN_X      : 0)
 		| (pressedB4(index) ? BTN_Y      : 0)
 		| (pressedL1(index) ? BTN_TL     : 0)
 		| (pressedR1(index) ? BTN_TR     : 0)
-		| (pressedL2(index) ? BTN_TL2    : 0)
-		| (pressedR2(index) ? BTN_TR2    : 0)
 		| (pressedS1(index) ? BTN_SELECT : 0)
 		| (pressedS2(index) ? BTN_START  : 0)
 		| (pressedL3(index) ? BTN_THUMBL : 0)
@@ -355,6 +367,11 @@ HIDReport *MPG::getHIDReport(const uint8_t index)
 	hidReport.ly = static_cast<uint8_t>(state[index].ly >> 8);
 	hidReport.rx = static_cast<uint8_t>(state[index].rx >> 8);
 	hidReport.ry = static_cast<uint8_t>(state[index].ry >> 8);
+	
+	hidReport.pressure_circle = 255 - state[index].pressureCircle;
+	hidReport.pressure_square = 255 - state[index].pressureSquare;
+	hidReport.pressure_l2 = 255 - state[index].pressureL2;
+	hidReport.pressure_r2 = 255 - state[index].pressureR2;
 
 	//hidReport.trigger = HID_JOYSTICK_MID;
 

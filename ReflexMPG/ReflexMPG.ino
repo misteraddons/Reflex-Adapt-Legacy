@@ -17,7 +17,7 @@
 // DONT USE THIS. ENABLE MODES DOWN BELOW AT REFLEX_NO_DEFAULTS
 //#define ENABLE_REFLEX_SATURN
 //#define ENABLE_REFLEX_SNES
-//#define ENABLE_REFLEX_PSX
+#define ENABLE_REFLEX_PSX
 //#define ENABLE_REFLEX_PSX_JOG //this is for jogcon forced specific mode. jogcon can still be used with ENABLE_REFLEX_PSX
 //#define ENABLE_REFLEX_PCE
 //#define ENABLE_REFLEX_NEOGEO
@@ -157,6 +157,7 @@
 #include "Shared.h"
 
 #include <LUFA.h>
+#include "USBAPI.h"  // Ensure Serial is available
 #include "LUFADriver.h"
 
 // Define time function for gamepad debouncer
@@ -204,6 +205,9 @@ static_assert( (RZORD_LAST > 1), "Error: must enable at least one input module")
 
 RZInputModule* gamepadModule; // gamepad(DEBOUNCE_MILLIS); // The gamepad instance
 
+// Global bypass array for perfect DS2 pressure data
+uint8_t ds2PressureBypass[12] = {0};
+
 char USB_STRING_MANUFACTURER[] = "MiSTerAddons";
 char USB_STRING_PRODUCT[] = "Reflex Adapt";
 //char USB_STRING_VERSION[] = "1.0";
@@ -218,8 +222,8 @@ void printModeByIndex(const InputMode i) {
     display.print(F("XINPUT"));
   } else if (i == INPUT_MODE_SWITCH) {
     display.print(F("SWITCH"));
-//  } else if (i == INPUT_MODE_PS3) {
-//    display.print(F("PS3"));
+  } else if (i == INPUT_MODE_PS3) {
+    display.print(F("PS3"));
   } else if (i >= INPUT_MODE_HID && i < INPUT_MODE_LAST) {
     display.print(F("HID"));
   } else {
@@ -285,7 +289,7 @@ void configureOutput(InputMode currentMode) {
         if(!firstRun) {
           currentMode = (InputMode)(currentMode + 1);
 
-          if(currentMode > INPUT_MODE_HID) //LAST
+          if(currentMode >= INPUT_MODE_LAST) //LAST
             currentMode = (InputMode)0;
         }
         display.clear(0, 127, 5, 7);
@@ -344,18 +348,8 @@ void configureOutput(InputMode currentMode) {
             psxchars -= 2;
           #endif
 
-          display.setCol(psxchars*6);
-          display.print(F("PSX"));
-
-          #ifdef GUNCON_SUPPORT
-            display.print(F("+GUN"));
-          #endif
-          #ifdef JOGCON_SUPPORT
-            display.print(F("+JOG"));
-          #endif
-          #ifdef NEGCON_SUPPORT
-            display.print(F("+NEG"));
-          #endif
+          display.setCol(4*6);
+          display.print(F("PS2 ANALOG"));
         }
 #endif //end general psx mode
 
@@ -566,6 +560,15 @@ void setup() {
 //gamepadModule->options.inputMode = INPUT_MODE_XINPUT;
 //gamepadModule->options.inputMode = INPUT_MODE_HID;
 //gamepadModule->options.inputMode = INPUT_MODE_SWITCH;
+#ifdef ENABLE_DS2_PS3_MODE
+  gamepadModule->options.inputMode = INPUT_MODE_PS3;
+#endif
+#ifdef ENABLE_PSX_GENERAL_OLED
+  #ifndef ENABLE_DS2_PS3_MODE
+    // Force HID mode for PS2_Analog firmware
+    gamepadModule->options.inputMode = INPUT_MODE_HID;
+  #endif
+#endif
 
   configureOutput(gamepadModule->options.inputMode);
 
@@ -621,8 +624,8 @@ void setup() {
     display.print('X');
   } else if (gamepadModule->options.inputMode == INPUT_MODE_SWITCH) {
     display.print('S');
-//  } else if (gamepadModule->options.inputMode == INPUT_MODE_PS3) {
-//    display.print('P');
+  } else if (gamepadModule->options.inputMode == INPUT_MODE_PS3) {
+    display.print('P');
   } else if (gamepadModule->options.inputMode == INPUT_MODE_HID) {
     display.print('H');
   } else if (gamepadModule->options.inputMode == INPUT_MODE_HID_GUNCON
@@ -676,13 +679,14 @@ void loop() {
 //  display.println( gamepadModule->state[0].rt );
 //  delay(2);
 
-  if (ps3enabled) {
-    ps3enabled = false;
-    gamepadModule->isPS3 = true;
-    display.setRow(1);
-    display.setCol(0);
-    display.print('P');
-  }
+  // Removed PS3 detection display code to prevent 'P' showing in HID mode
+  // if (ps3enabled) {
+  //   ps3enabled = false;
+  //   gamepadModule->isPS3 = true;
+  //   display.setRow(1);
+  //   display.setCol(0);
+  //   display.print('P');
+  // }
 
   //Disable oled display after 2 minutes of no state changed
   //Any input state change will wake up the display

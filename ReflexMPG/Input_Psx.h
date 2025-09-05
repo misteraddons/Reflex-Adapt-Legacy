@@ -55,39 +55,22 @@ class ReflexInputPsx : public RZInputModule {
       new PsxControllerHwSpi<PIN_PS2_ATT>()
     };
 
-    bool isNeGcon { false };
-    bool isJogcon { false };
-    bool isGuncon { false };
-    bool isNeGconMiSTer { false };
-    uint8_t specialDpadMask { 0x0 };
     bool haveController[2] { false, false };
     PsxControllerProtocol lastProto[2] { PSPROTO_UNKNOWN, PSPROTO_UNKNOWN };
-    bool enableMouseMove { false }; //used on guncon and jogcon modes
     uint8_t outputIndex { 0 };
 
     void tryEnableRumble() {
-      //if ((options.inputMode == INPUT_MODE_XINPUT || detectDS2) && !isJogcon){ //try to enable rumble
-      if (!isJogcon){ //try to enable rumble
-        if (psx->enterConfigMode ()) {
-          psx->enableRumble ();
-          if (psx->getControllerType () == PSCTRL_DUALSHOCK2) {
-            sleepTime = PS_INTERVAL_DS2;
-          }
-          psx->exitConfigMode ();
+      if (psx->enterConfigMode()) {
+        psx->enableRumble();
+        psx->enableAnalogButtons();
+        if (psx->getControllerType() == PSCTRL_DUALSHOCK2) {
+          sleepTime = PS_INTERVAL_DS2;
         }
+        psx->exitConfigMode();
       }
     }
 
-    //Include sub-modules as private
-    #ifdef GUNCON_SUPPORT
-      #include "Input_Psx_Guncon.h"
-    #endif
-    #ifdef NEGCON_SUPPORT
-      #include "Input_Psx_Negcon.h"
-    #endif
-    #ifdef JOGCON_SUPPORT
-      #include "Input_Psx_Jogcon.h"
-    #endif
+    // PS2 Analog firmware - specialized for DualShock 2 pressure-sensitive buttons
 
     #ifdef ENABLE_REFLEX_PAD
       const Pad padPsx[16] = {
@@ -124,66 +107,48 @@ class ReflexInputPsx : public RZInputModule {
       };
     
       void loopPadDisplayCharsPsx(const uint8_t index, const PsxControllerProtocol padType, void* p, const bool force) {
-//        for(uint8_t i = 0; i < (sizeof(padPsx) / sizeof(Pad)); ++i){
-//          if(padType != PSPROTO_DUALSHOCK && padType != PSPROTO_DUALSHOCK2 && (i == 1 || i == 2))
-//            continue;
-//          if(padType == PSPROTO_NEGCON && (i == 0 || i == 8 || i == 9))
-//            continue;
-//          const Pad pad = padPsx[i];
-//          PrintPadChar(index, padDivision[index].firstCol, pad.col, pad.row, pad.padvalue, p && static_cast<PsxController*>(p)->buttonPressed(static_cast<PsxButton>(pad.padvalue)), pad.on, pad.off, force);
-//        }
-        if(specialDpadMask == SPECIALMASK_POPN) {
-          for(uint8_t i = 0; i < (sizeof(padPsxPopN) / sizeof(Pad)); ++i){
-            const Pad pad = padPsxPopN[i];
-            PrintPadChar(index, padDivision[index].firstCol, pad.col, pad.row, pad.padvalue, p && static_cast<PsxController*>(p)->buttonPressed(static_cast<PsxButton>(pad.padvalue)), pad.on, pad.off, force);
-          }
-        } else {
-          for(uint8_t i = 0; i < (sizeof(padPsx) / sizeof(Pad)); ++i){
-            if(padType != PSPROTO_DUALSHOCK && padType != PSPROTO_DUALSHOCK2 && (i == 1 || i == 2))
-              continue;
-            if(padType == PSPROTO_NEGCON && (i == 0 || i == 8 || i == 9))
-              continue;
-            const Pad pad = padPsx[i];
-            PrintPadChar(index, padDivision[index].firstCol, pad.col, pad.row, pad.padvalue, p && static_cast<PsxController*>(p)->buttonPressed(static_cast<PsxButton>(pad.padvalue)), pad.on, pad.off, force);
-          }
+        // Show all DS2 buttons
+        for(uint8_t i = 0; i < (sizeof(padPsx) / sizeof(Pad)); ++i){
+          const Pad pad = padPsx[i];
+          PrintPadChar(index, padDivision[index].firstCol, pad.col, pad.row, pad.padvalue, p && static_cast<PsxController*>(p)->buttonPressed(static_cast<PsxButton>(pad.padvalue)), pad.on, pad.off, force);
+        }
       }
-    }
     
       void ShowDefaultPadPsx(const uint8_t index, const PsxControllerProtocol padType) {
         display.clear(padDivision[index].firstCol, padDivision[index].lastCol, oledDisplayFirstRow + 1, 7);
         display.setCursor(padDivision[index].firstCol, 7);
     
+        // Show protocol type and analog button availability
         switch(padType) {
-          case PSPROTO_DIGITAL:
-          case PSPROTO_NEGCON:
-            if (specialDpadMask == SPECIALMASK_POPN)
-              display.print(F("POP N"));
-            else
-              display.print(isNeGcon ? F("NEGCON") : PSTR_TO_F(PSTR_DIGITAL));
+          case PSPROTO_DUALSHOCK2:
+            display.print(F("DS2"));
             break;
           case PSPROTO_DUALSHOCK:
-            if (specialDpadMask == SPECIALMASK_JET){
-              display.print(F("JET"));
-            } else {
-              display.print(F("DUALSHOCK"));
-            }
+            display.print(F("DS1"));
             break;
-          //case PSPROTO_DUALSHOCK2:
-          //  display.print(F("DUALSHOCK2"));
-          //  break;
+          case PSPROTO_DIGITAL:
+            display.print(F("DIG"));
+            break;
           case PSPROTO_FLIGHTSTICK:
-            display.print(F("FLIGHTSTICK"));
+            display.print(F("FLY"));
             break;
-          //case PSPROTO_NEGCON:
-          //  display.print(F("NEGCON-"));
-          //  display.print(isNeGcon ? F("ANALOG") : PSTR_TO_F(PSTR_DIGITAL));
-          //  break;
+          case PSPROTO_NEGCON:
+            display.print(F("NEG"));
+            break;
           case PSPROTO_JOGCON:
-            display.print(F("JOGCON"));
+            display.print(F("JOG"));
+            break;
+          case PSPROTO_GUNCON:
+            display.print(F("GUN"));
             break;
           default:
             display.print(PSTR_TO_F(PSTR_NONE));
             return;
+        }
+        
+        // Show if analog button data is available
+        if (psx && psx->getAnalogButtonData() != nullptr) {
+          display.print(F("+"));  // Indicates analog button data available
         }
       
         if (index < 2) {
@@ -199,8 +164,6 @@ class ReflexInputPsx : public RZInputModule {
         | (psx->buttonPressed(PSB_PAD_LEFT)  ? GAMEPAD_MASK_LEFT  : 0)
         | (psx->buttonPressed(PSB_PAD_RIGHT) ? GAMEPAD_MASK_RIGHT : 0)
       ;
-      if (specialDpadMask)
-        state[outputIndex].dpad = (state[outputIndex].dpad | specialDpadMask) & 0xF;
     }
 
     bool loopDualShock() {
@@ -232,38 +195,31 @@ class ReflexInputPsx : public RZInputModule {
     
       
       switch (proto) {
-      case PSPROTO_DIGITAL:
-        //if (!stateChanged)
-        //  return false;
-      case PSPROTO_NEGCON:
       case PSPROTO_DUALSHOCK:
       case PSPROTO_DUALSHOCK2:
-      case PSPROTO_FLIGHTSTICK:
       {
         handleDpad();
     
 //        uint16_t buttonData = 0;
-        //controller buttons
+        // Controller buttons - Triangle and Cross remain digital, Circle/Square/L2/R2 are analog
+        const uint8_t* analogData = psx->getAnalogButtonData();
+        
         state[outputIndex].buttons = 0
-          | (psx->buttonPressed(PSB_CROSS)    ? GAMEPAD_MASK_B1 : 0) // Generic: K1, Switch: B, Xbox: A
-          | (psx->buttonPressed(PSB_CIRCLE)   ? GAMEPAD_MASK_B2 : 0) // Generic: K2, Switch: A, Xbox: B
-          | (psx->buttonPressed(PSB_SQUARE)   ? GAMEPAD_MASK_B3 : 0) // Generic: P1, Switch: Y, Xbox: X
-          | (psx->buttonPressed(PSB_TRIANGLE) ? GAMEPAD_MASK_B4 : 0) // Generic: P2, Switch: X, Xbox: Y
-          | (psx->buttonPressed(PSB_L1)       ? GAMEPAD_MASK_L1 : 0) // Generic: P4, Switch: L, Xbox: LB
-          | (psx->buttonPressed(PSB_R1)       ? GAMEPAD_MASK_R1 : 0) // Generic: P3, Switch: R, Xbox: RB
-          | (psx->buttonPressed(PSB_L2)       ? GAMEPAD_MASK_L2 : 0) // Generic: K4, Switch: ZL, Xbox: LT (Digital)
-          | (psx->buttonPressed(PSB_R2)       ? GAMEPAD_MASK_R2 : 0) // Generic: K3, Switch: ZR, Xbox: RT (Digital)
-          | (psx->buttonPressed(PSB_SELECT)   ? GAMEPAD_MASK_S1 : 0) // Generic: Select, Switch: -, Xbox: View
-          | (psx->buttonPressed(PSB_START)    ? GAMEPAD_MASK_S2 : 0) // Generic: Start, Switch: +, Xbox: Menu
-          | (psx->buttonPressed(PSB_L3)       ? GAMEPAD_MASK_L3 : 0) // All: Left Stick Click
-          | (psx->buttonPressed(PSB_R3)       ? GAMEPAD_MASK_R3 : 0) // All: Right Stick Click
+          | (psx->buttonPressed(PSB_TRIANGLE) ? GAMEPAD_MASK_B4 : 0)
+          | (psx->buttonPressed(PSB_CROSS)    ? GAMEPAD_MASK_B1 : 0)
+          | (psx->buttonPressed(PSB_L1)       ? GAMEPAD_MASK_L1 : 0)
+          | (psx->buttonPressed(PSB_R1)       ? GAMEPAD_MASK_R1 : 0)
+          | (psx->buttonPressed(PSB_SELECT)   ? GAMEPAD_MASK_S1 : 0)
+          | (psx->buttonPressed(PSB_START)    ? GAMEPAD_MASK_S2 : 0)
+          | (psx->buttonPressed(PSB_L3)       ? GAMEPAD_MASK_L3 : 0)
+          | (psx->buttonPressed(PSB_R3)       ? GAMEPAD_MASK_R3 : 0)
         ;
     
     
     //if(proto != PSPROTO_DIGITAL)
     
         //analog sticks
-        if (psx->getLeftAnalog(analogX, analogY) && proto != PSPROTO_NEGCON) {
+        if (psx->getLeftAnalog(analogX, analogY)) {
           state[outputIndex].lx = convertAnalog(analogX);
           state[outputIndex].ly = convertAnalog(analogY);
         } else {
@@ -279,9 +235,30 @@ class ReflexInputPsx : public RZInputModule {
         lastLX[outputIndex] = analogX;
         lastLY[outputIndex] = analogY;
     
-        if (psx->getRightAnalog(analogX, analogY) && proto != PSPROTO_NEGCON) {
-          if (specialDpadMask == SPECIALMASK_JET)
-            analogX = ANALOG_IDLE_VALUE;
+        // Read pressure data for analog buttons
+        if (analogData != nullptr) {
+          state[outputIndex].pressureCircle = analogData[5];
+          state[outputIndex].pressureSquare = analogData[7];
+          state[outputIndex].pressureL2 = analogData[10];
+          state[outputIndex].pressureR2 = analogData[11];
+        } else {
+          state[outputIndex].pressureCircle = 0;
+          state[outputIndex].pressureSquare = 0;
+          state[outputIndex].pressureL2 = 0;
+          state[outputIndex].pressureR2 = 0;
+        }
+        
+        state[outputIndex].pressureRight = 0;
+        state[outputIndex].pressureLeft = 0;
+        state[outputIndex].pressureUp = 0;
+        state[outputIndex].pressureDown = 0;
+        state[outputIndex].pressureL1 = 0;
+        state[outputIndex].pressureR1 = 0;
+        state[outputIndex].pressureTriangle = 0;
+        state[outputIndex].pressureCross = 0;
+        
+        // Handle right analog stick normally
+        if (psx->getRightAnalog(analogX, analogY)) {
           state[outputIndex].rx = convertAnalog(analogX);
           state[outputIndex].ry = convertAnalog(analogY);
         } else {
@@ -290,7 +267,8 @@ class ReflexInputPsx : public RZInputModule {
           state[outputIndex].rx = convertAnalog(analogX);
           state[outputIndex].ry = convertAnalog(analogY);
         }
-        
+
+
         if (lastRX[outputIndex] != analogX || lastRY[outputIndex] != analogY)
           stateChanged = true;
     
@@ -329,23 +307,10 @@ class ReflexInputPsx : public RZInputModule {
   public:
     ReflexInputPsx() : RZInputModule() { }
 
+
     const char* getUsbId() override {
-      static const char* usbId_ds1       { "RZMPsDS1" };
-      static const char* usbId_guncon    { "ReflexPSGun" }; //{ "RZordPsGun" };
-      static const char* usbId_negcon    { "RZMPsNeGcon" };
-      //static const char* usbId_negwheel { "RZordPsWheel" }; //{ "RZMPsWheel" };
-      static const char* usbId_negwheel  { "ReflexPSWheel" }; //{ "RZMPsWheel" };
-      static const char* usbId_misterjog { "MiSTer-A1 JogCon" };
-      static const char* usbId_mousejog  { "RZMPSJogCon" };
-      
-      if (isGuncon)
-        return usbId_guncon;
-      else if (isNeGcon)
-        return isNeGconMiSTer ? usbId_negwheel : usbId_negcon;
-      else if (isJogcon)
-        return enableMouseMove ? usbId_mousejog : usbId_misterjog;
-      else
-        return usbId_ds1;
+      static const char* usbId_ds2 { "RZMPsDS2" };
+      return usbId_ds2;
     }
 
     const uint16_t getUsbVersion() override {
@@ -391,110 +356,25 @@ class ReflexInputPsx : public RZInputModule {
 
         lastProto[0] = proto;
     
-        if (proto == PSPROTO_GUNCON) {
-          isGuncon = true;
-        } else if (proto == PSPROTO_NEGCON) {
-          isNeGcon = true;
-    
-          //Configure NeGcon mode
-          #if defined(NEGCON_FORCE_MODE) && NEGCON_FORCE_MODE >= 0 && NEGCON_FORCE_MODE < 2
-            #if NEGCON_FORCE_MODE == 1
-              isNeGconMiSTer = true;
-            #endif
-          #else //NEGCON_FORCE_MODE
-            if (psx->buttonPressed(PSB_CIRCLE)) //NeGcon A / Volume B
-              isNeGconMiSTer = !isNeGconMiSTer;
-          #endif //NEGCON_FORCE_MODE
-        } else { //jogcon can't be detected during boot as it needs to be in analog mode
-    
-    #ifdef JOGCON_SUPPORT
-        //Try to detect by it's id
-        if(proto == PSPROTO_DIGITAL) {
-          if (psx->enterConfigMode ()) {
-            if (psx->getControllerType () == PSCTRL_JOGCON) {
-              isJogcon = true;
-              if (psx->buttonPressed(PSB_L2))
-                enableMouseMove = true;
-            }
-            psx->exitConfigMode ();
-          }
-        }
-    #endif
-
-          if (psx->buttonPressed(PSB_SELECT)) { //dualshock used in guncon mode to help map axis on emulators.
-            isGuncon = true;
-          }
-          /*else if (proto == PSPROTO_JOGCON || psx->buttonPressed(PSB_L1)) {
-            isJogcon = true;
-          } else if (psx->buttonPressed(PSB_L2)) {
-            isJogcon = true;
-            enableMouseMove = true;
-          }*/
-        }
+        // Only support DualShock 2 controllers
 
         tryEnableRumble();
 
 
       } else { //no controller connected
-        if (proto == PSPROTO_JOGCON)
-          isJogcon = true;
+        // DS2 only - no special controller handling
       }
     
-      if (isNeGcon) {
-        #ifdef NEGCON_SUPPORT
-          negconSetup();
-        #endif
-      } else if (isJogcon) {
-        #ifdef JOGCON_SUPPORT
-          jogconSetup();
-        #endif
-      } else {
-        if (isGuncon) {
-          #ifdef GUNCON_SUPPORT
-            gunconSetup();
-          #endif
-        } else { //dualshock [default]
-          
-          if (proto == PSPROTO_DIGITAL
-          && psx->buttonPressed(PSB_PAD_DOWN)
-          && psx->buttonPressed(PSB_PAD_LEFT)
-          && psx->buttonPressed(PSB_PAD_RIGHT))
-            specialDpadMask = SPECIALMASK_POPN;
-
-          if (proto == PSPROTO_DUALSHOCK
-          && psx->buttonPressed(PSB_PAD_LEFT)
-          && psx->buttonPressed(PSB_PAD_RIGHT)) {
-            byte analogX;
-            byte analogY;
-            if (psx->getRightAnalog(analogX, analogY) && analogX == 0xFF) {
-              sleepTime = PS_INTERVAL_JET;
-              specialDpadMask = SPECIALMASK_JET;
-            }
-          }
-            
-          totalUsb = 2;//MAX_USB_STICKS;
-          for (uint8_t i = 0; i < totalUsb; i++) {
-            hasLeftAnalogStick[i] = true;
-            hasRightAnalogStick[i] = true;
-          }
-        }
+      // DualShock 2 setup
+      totalUsb = 2;//MAX_USB_STICKS;
+      for (uint8_t i = 0; i < totalUsb; i++) {
+        hasLeftAnalogStick[i] = true;
+        hasRightAnalogStick[i] = true;
       }
     }//end setup
 
     void setup2() override {
-      if (isNeGcon) {
-        #ifdef NEGCON_SUPPORT
-          negconSetup2();
-        #endif
-      } else if (isJogcon) {
-        #ifdef JOGCON_SUPPORT
-          jogconSetup2();
-        #endif
-      } else if (isGuncon) {
-        #ifdef GUNCON_SUPPORT
-          gunconSetup2();
-        #endif
-      }
+      // DualShock 2 setup - nothing needed
     }
 
     bool read() override {
@@ -504,21 +384,7 @@ class ReflexInputPsx : public RZInputModule {
     
       outputIndex = 0;
     
-      if(isJogcon) {
-        #ifdef JOGCON_SUPPORT
-          if (!haveController[0]) {
-            init_jogcon();
-          } else {
-            if(!psx->read()){
-              //haveController = false;
-              haveController[0] = false;
-            } else {
-              stateChanged = handleJogconData();
-            }
-          }
-        #endif
-        return stateChanged;//haveController[0];
-      }
+      // DualShock 2 only - no special controller handling needed
     
       //if (millis() - last >= POLLING_INTERVAL) {
       //  last = millis();
@@ -551,6 +417,9 @@ class ReflexInputPsx : public RZInputModule {
           display.clear(0, 127, 7, 7);
           display.setRow(7);
     
+          // Show firmware identifier
+          display.setCol(0);
+          display.print(F("DS2 FW"));
     
           for (uint8_t i = 0; i < 2; i++) {
             //const uint8_t firstCol = i == 0 ? 0 : 12*6;
@@ -625,25 +494,14 @@ class ReflexInputPsx : public RZInputModule {
               ShowDefaultPadPsx(i, PSPROTO_UNKNOWN);
             }
           }
-          if(isGuncon)//only use first port for guncon
-            break;
+          // DS2 supports both ports
         }
     
     
         for (uint8_t i = 0; i < totalUsb; i++) {
           if (haveController[i] && isReadSuccess[i]) {
             psx = psxlist[i];
-            if (isNeGcon) {
-              #ifdef NEGCON_SUPPORT
-                stateChanged |= loopNeGcon();
-              #endif
-            } else if (isGuncon) {
-              #ifdef GUNCON_SUPPORT
-                loopGuncon();
-              #endif
-            } else {
-              stateChanged |= loopDualShock();
-            }
+            stateChanged |= loopDualShock();
           }
           outputIndex++;
         }
