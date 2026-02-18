@@ -249,6 +249,7 @@ class ReflexInputSnes : public RZInputModule {
         //Only process data if state changed from previous read
         if(sc.stateChanged()) {
           stateChanged = true;
+          hasRightAnalogStick[i] = false;
           
           //Controller just connected.
           if (sc.deviceJustChanged()) {
@@ -275,6 +276,26 @@ class ReflexInputSnes : public RZInputModule {
               | (sc.digitalPressed(SNES_Y) ? GAMEPAD_MASK_B2 : 0) // Generic: K2, Switch: A, Xbox: B
             ;
           } else {
+            #if defined(SNES_ENABLE_VBOY) && defined(SNES_VBOY_RIGHT_DPAD_TO_RSTICK)
+            if (padType == SNES_DEVICE_VB) {
+              const uint8_t vbRightDpad = 0
+                | (sc.digitalPressed(SNES_X) ? GAMEPAD_MASK_UP    : 0)
+                | (sc.digitalPressed(SNES_B) ? GAMEPAD_MASK_DOWN  : 0)
+                | (sc.digitalPressed(SNES_Y) ? GAMEPAD_MASK_LEFT  : 0)
+                | (sc.digitalPressed(SNES_A) ? GAMEPAD_MASK_RIGHT : 0)
+              ;
+
+              state[i].rx = dpadToAnalogX(vbRightDpad);
+              state[i].ry = dpadToAnalogY(vbRightDpad);
+              hasRightAnalogStick[i] = true;
+
+              state[i].buttons = 0
+                | (sc.digitalPressed(SNES_L) ? GAMEPAD_MASK_L1 : 0) // Generic: P4, Switch: L, Xbox: LB
+                | (sc.digitalPressed(SNES_R) ? GAMEPAD_MASK_R1 : 0) // Generic: P3, Switch: R, Xbox: RB
+              ;
+            } else
+            #endif
+            {
             state[i].buttons = 0
               | (sc.digitalPressed(SNES_B) ? GAMEPAD_MASK_B1 : 0) // Generic: K1, Switch: B, Xbox: A
               | (sc.digitalPressed(SNES_A) ? GAMEPAD_MASK_B2 : 0) // Generic: K2, Switch: A, Xbox: B
@@ -289,6 +310,7 @@ class ReflexInputSnes : public RZInputModule {
               //| (sc.digitalPressed(LCLICK) ? GAMEPAD_MASK_L3 : 0) // All: Left Stick Click
               //| (sc.digitalPressed(RCLICK) ? GAMEPAD_MASK_R3 : 0) // All: Right Stick Click
             ;
+            }
     
             if(padType == SNES_DEVICE_NTT) {
               state[i].buttons |=
