@@ -58,7 +58,7 @@ jobs:
       #    tar --extract --directory . --strip-components 1 --file "$asset" "${release}"/rcodesign
       #    ./rcodesign sign --p12-file certificate.p12 --p12-password-file certificate.pwd reflex_updater/target/${{ matrix.target }}/release/reflex_updater
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: ${{ matrix.host == 'windows-latest' }}
         with:
           name: ${{ matrix.target }}
@@ -66,7 +66,7 @@ jobs:
             reflex_updater/target/${{ matrix.target }}/release/reflex_updater.exe
             reflex_updater/target/${{ matrix.target }}/release/reflex_updater.pdb
           if-no-files-found: error
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: ${{ matrix.host != 'windows-latest' }}
         with:
           name: ${{ matrix.target }}
@@ -87,7 +87,7 @@ jobs:
         working-directory: artifacts
         
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: reflex_updater
           path: artifacts/
