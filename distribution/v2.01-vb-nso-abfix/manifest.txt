@@ -1,0 +1,16 @@
+# reflex-updater manifest
+category:MPG: Dinput (1-2P) / Xinput (1P) / Switch + PS3 (1-2P)
+firmware/MPGCombo1.hex,Combo 1: PSX+neGcon, N64 & GC
+firmware/MPGCombo2.hex,Combo 2: NES+SNES+VB, SMS, JPC, Neo, N64 & GC
+firmware/MPGCombo3.hex,Combo 3: NES+SNES+VB, PSX+neGcon & N64
+firmware/MPGCombo4.hex,Combo 4: NES+SNES, PSX, Neo & N64
+firmware/MPGCombo5.hex,Combo 5: NES+SNES+VB, PCE, Neo, N64 & GC
+firmware/MPGCombo6.hex,Combo 6: NES+SNES, PCE, Neo, Jag & SMS
+firmware/MPGCombo7.hex,Combo 7: Gen+Sat, PSX, Neo & SMS
+firmware/MPGCombo8.hex,Combo 8: Gen+Sat, NES+SNES+VB, PCE & Neo
+firmware/MPGCombo9.hex,Combo 9: Gen+Sat, NES+SNES+VB & N64
+firmware/MPGCombo10.hex,Combo 10: Gen+Sat, Neo, N64 & GC
+firmware/MPGCombo11.hex,Combo 11: PSX, 3DO & Wii
+firmware/MPGCombo12.hex,Combo 12: NES+SNES, Gen+Sat, Neo & GC
+firmware/MPGCombo13.hex,Combo 13: NES+SNES, PSX, Jaguar & Wii
+firmware/MPGVBNSO.hex,VB NSO: NES+SNES+VB with VB right D-pad on right stick
