@@ -290,6 +290,8 @@ class ReflexInputSnes : public RZInputModule {
               hasRightAnalogStick[i] = true;
 
               state[i].buttons = 0
+                | (sc.nttPressed(SNES_NTT_0) ? GAMEPAD_MASK_B1 : 0) // VB B -> Generic: K1, Switch: B, Xbox: A
+                | (sc.nttPressed(SNES_NTT_1) ? GAMEPAD_MASK_B2 : 0) // VB A -> Generic: K2, Switch: A, Xbox: B
                 | (sc.digitalPressed(SNES_L) ? GAMEPAD_MASK_L1 : 0) // Generic: P4, Switch: L, Xbox: LB
                 | (sc.digitalPressed(SNES_R) ? GAMEPAD_MASK_R1 : 0) // Generic: P3, Switch: R, Xbox: RB
               ;
@@ -336,10 +338,12 @@ class ReflexInputSnes : public RZInputModule {
               ;
             
             } else if(padType == SNES_DEVICE_VB) {
+              #ifndef SNES_VBOY_RIGHT_DPAD_TO_RSTICK
               state[i].buttons |=
                   (sc.nttPressed(SNES_NTT_0) ? GAMEPAD_MASK_L2 : 0) // Generic: K4, Switch: ZL, Xbox: LT (Digital)
                 | (sc.nttPressed(SNES_NTT_1) ? GAMEPAD_MASK_R2 : 0) // Generic: K3, Switch: ZR, Xbox: RT (Digital)
               ;
+              #endif
             }
           }
 
