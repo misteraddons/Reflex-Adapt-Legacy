@@ -352,6 +352,15 @@ class ReflexInputSnes : public RZInputModule {
             | (sc.digitalPressed(SNES_START) ? GAMEPAD_MASK_S2 : 0) // Generic: Start, Switch: +, Xbox: Menu
           ;
 
+          #if defined(SNES_ENABLE_VBOY) && defined(SNES_VBOY_RIGHT_DPAD_TO_RSTICK)
+          if (padType == SNES_DEVICE_VB && sc.digitalPressed(SNES_START)) {
+            state[i].buttons |=
+                (sc.digitalPressed(SNES_L) ? GAMEPAD_MASK_L2 : 0) // Generic: K4, Switch: ZL, Xbox: LT (Digital)
+              | (sc.digitalPressed(SNES_R) ? GAMEPAD_MASK_R2 : 0) // Generic: K3, Switch: ZR, Xbox: RT (Digital)
+            ;
+          }
+          #endif
+
           #ifdef ENABLE_REFLEX_PAD
             //Only used if not in multitap mode
             if (totalUsb == 2 && inputPort < 2) {
