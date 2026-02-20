@@ -203,36 +203,20 @@ class SnesPort {
     uint8_t multitapPorts = 0;
     SnesController controllers[SNES_MAX_CTRL];
 
-    #ifndef SNES_MULTI_CONNECTION
+    #if !defined(SNES_MULTI_CONNECTION) && !defined(SNES_ENABLE_MULTITAP)
       uint8_t queuedRumbleData = 0;
       bool queuedRumbleValid = false;
-
-      inline void __attribute__((always_inline))
-      writeSelect(const bool value) {
-        #ifdef SNES_ENABLE_MULTITAP
-          SNES_MULTITAP.write(value ? HIGH : LOW);
-        #else
-          SNES_SELECT.write(value ? HIGH : LOW);
-        #endif
-      }
 
       void sendQueuedRumbleDuringPoll() {
         if (!queuedRumbleValid)
           return;
 
-        #ifdef SNES_ENABLE_MULTITAP
-          if (multitapPorts != 0) {
-            queuedRumbleValid = false;
-            return;
-          }
-        #endif
-
         const uint16_t packet = (uint16_t(0x72) << 8) | queuedRumbleData;
         for (int8_t i = 15; i >= 0; --i) {
-          writeSelect((packet >> i) & 0x1);
+          SNES_SELECT.write((packet >> i) & 0x1);
           doClockCicle();
         }
-        writeSelect(LOW);
+        SNES_SELECT.write(LOW);
         queuedRumbleValid = false;
       }
     #endif
@@ -539,7 +523,7 @@ class SnesPort {
         }
       }
 
-      #ifndef SNES_MULTI_CONNECTION
+      #if !defined(SNES_MULTI_CONNECTION) && !defined(SNES_ENABLE_MULTITAP)
         sendQueuedRumbleDuringPoll();
       #endif
     }
@@ -549,7 +533,7 @@ class SnesPort {
     uint8_t getMultitapPorts() const { return multitapPorts; }
     uint8_t getControllerCount() const { return joyCount; }
 
-    #ifndef SNES_MULTI_CONNECTION
+    #if !defined(SNES_MULTI_CONNECTION) && !defined(SNES_ENABLE_MULTITAP)
       void queueRumble(const uint8_t rumbleData) {
         queuedRumbleData = rumbleData;
         queuedRumbleValid = true;
