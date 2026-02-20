@@ -45,11 +45,12 @@ class ReflexInputSnes : public RZInputModule {
       SnesPort<SNES1_CLOCK, SNES1_LATCH, SNES1_DATA1, SNES1_DATA2, SNES1_SELECT> snes1;
       SnesPort<SNES2_CLOCK, SNES2_LATCH, SNES2_DATA1, SNES2_DATA2, SNES2_SELECT> snes2;
     #else
-      SnesPort<SNES1_CLOCK, SNES1_LATCH, SNES1_DATA1> snes1;
-      SnesPort<SNES2_CLOCK, SNES2_LATCH, SNES2_DATA1> snes2;
+      SnesPort<SNES1_CLOCK, SNES1_LATCH, SNES1_DATA1, SNES1_SELECT> snes1;
+      SnesPort<SNES2_CLOCK, SNES2_LATCH, SNES2_DATA1, SNES2_SELECT> snes2;
     #endif
 
     bool isVirtualBoy {false};
+    uint8_t lastRumbleData[2] {0, 0};
 
     #ifdef ENABLE_REFLEX_PAD
       const Pad padSnes[16] = {
@@ -194,6 +195,8 @@ class ReflexInputSnes : public RZInputModule {
     
       //totalUsb = 4;
 
+      lastRumbleData[0] = 0;
+      lastRumbleData[1] = 0;
       delayMicroseconds(sleepTime);
     }
 
@@ -217,6 +220,41 @@ class ReflexInputSnes : public RZInputModule {
     
       #endif
       bool stateChanged = false;
+
+      #ifndef SNES_MULTI_CONNECTION
+      // SNES RumbleTech (Doom FX3) is supported on port 1, without multitap.
+      if (snes1.getMultitapPorts() == 0) {
+        auto toNibble = [](const uint8_t value) -> uint8_t {
+          if (value == 0)
+            return 0;
+          const uint8_t quantized = (value + 15) >> 4;
+          return quantized > 15 ? 15 : quantized;
+        };
+
+        uint8_t srcLeft = rumble[0].left_power;
+        uint8_t srcRight = rumble[0].right_power;
+        if (srcLeft == 0 && srcRight == 0) {
+          for (uint8_t ri = 0; ri < MAX_HID_INTERFACES; ++ri) {
+            if (rumble[ri].left_power > srcLeft)
+              srcLeft = rumble[ri].left_power;
+            if (rumble[ri].right_power > srcRight)
+              srcRight = rumble[ri].right_power;
+          }
+        }
+
+        // Packet lower byte is [RRRR][LLLL].
+        const uint8_t right = toNibble(srcLeft);
+        const uint8_t left = toNibble(srcRight);
+        const uint8_t rumbleData = (right << 4) | left;
+
+        if (rumbleData != 0 || lastRumbleData[0] != 0) {
+          snes1.queueRumble(rumbleData);
+          lastRumbleData[0] = rumbleData;
+        }
+      } else {
+        lastRumbleData[0] = 0;
+      }
+      #endif
     
       //Read snes port
       snes1.update();
