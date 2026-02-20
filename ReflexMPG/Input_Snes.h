@@ -50,14 +50,6 @@ class ReflexInputSnes : public RZInputModule {
     #endif
 
     bool isVirtualBoy {false};
-    uint8_t lastRumbleData {0};
-
-    inline uint8_t toRumbleNibble(const uint8_t value) const {
-      if (value == 0)
-        return 0;
-      const uint8_t quantized = (value + 15) >> 4;
-      return quantized > 15 ? 15 : quantized;
-    }
 
     #ifdef ENABLE_REFLEX_PAD
       const Pad padSnes[16] = {
@@ -202,7 +194,6 @@ class ReflexInputSnes : public RZInputModule {
     
       //totalUsb = 4;
 
-      lastRumbleData = 0;
       delayMicroseconds(sleepTime);
     }
 
@@ -229,22 +220,9 @@ class ReflexInputSnes : public RZInputModule {
 
       #if !defined(SNES_MULTI_CONNECTION) && !defined(SNES_ENABLE_MULTITAP)
       // SNES RumbleTech (Doom FX3) is supported on port 1, without multitap.
-      if (snes1.getMultitapPorts() == 0) {
-        uint8_t srcLeft = rumble[0].left_power;
-        uint8_t srcRight = rumble[0].right_power;
-
-        // Packet lower byte is [RRRR][LLLL].
-        const uint8_t right = toRumbleNibble(srcLeft);
-        const uint8_t left = toRumbleNibble(srcRight);
-        const uint8_t rumbleData = (right << 4) | left;
-
-        if (rumbleData != 0 || lastRumbleData != 0) {
-          snes1.queueRumble(rumbleData);
-          lastRumbleData = rumbleData;
-        }
-      } else {
-        lastRumbleData = 0;
-      }
+      // Packet lower byte is [RRRR][LLLL], using upper nibble of each motor.
+      const uint8_t rumbleData = (rumble[0].left_power & 0xF0) | (rumble[0].right_power >> 4);
+      snes1.queueRumble(rumbleData);
       #endif
     
       //Read snes port
