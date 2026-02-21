@@ -208,6 +208,8 @@ class ReflexInputPsx : public RZInputModule {
       static byte lastLY[] = { ANALOG_IDLE_VALUE, ANALOG_IDLE_VALUE };
       static byte lastRX[] = { ANALOG_IDLE_VALUE, ANALOG_IDLE_VALUE };
       static byte lastRY[] = { ANALOG_IDLE_VALUE, ANALOG_IDLE_VALUE };
+      static uint8_t lastStableDpad[] = { 0, 0 };
+      static uint16_t lastStableButtons[] = { 0, 0 };
     
       #ifdef ENABLE_REFLEX_PAD
         static PsxControllerProtocol lastPadType[] = { PSPROTO_UNKNOWN, PSPROTO_UNKNOWN };
@@ -219,8 +221,8 @@ class ReflexInputPsx : public RZInputModule {
       byte analogY = ANALOG_IDLE_VALUE;
       //word convertedX, convertedY;
     
-      const bool digitalStateChanged = psx->buttonsChanged();//check if any digital value changed (dpad and buttons)
-      bool stateChanged = digitalStateChanged;
+      bool digitalStateChanged = false;
+      bool stateChanged = false;
       
       const PsxControllerProtocol proto = psx->getProtocol();
     
@@ -258,6 +260,15 @@ class ReflexInputPsx : public RZInputModule {
           | (psx->buttonPressed(PSB_L3)       ? GAMEPAD_MASK_L3 : 0) // All: Left Stick Click
           | (psx->buttonPressed(PSB_R3)       ? GAMEPAD_MASK_R3 : 0) // All: Right Stick Click
         ;
+
+        // Ignore obvious one-frame D-pad corruption without changing normal input latency.
+        if (specialDpadMask == 0x0
+         && state[outputIndex].dpad == (GAMEPAD_MASK_UP | GAMEPAD_MASK_DOWN | GAMEPAD_MASK_LEFT | GAMEPAD_MASK_RIGHT)) {
+          state[outputIndex].dpad = lastStableDpad[outputIndex];
+        }
+        digitalStateChanged = state[outputIndex].dpad != lastStableDpad[outputIndex]
+                           || state[outputIndex].buttons != lastStableButtons[outputIndex];
+        stateChanged = digitalStateChanged;
     
     
     //if(proto != PSPROTO_DIGITAL)
@@ -296,6 +307,8 @@ class ReflexInputPsx : public RZInputModule {
     
         lastRX[outputIndex] = analogX;
         lastRY[outputIndex] = analogY;
+        lastStableDpad[outputIndex] = state[outputIndex].dpad;
+        lastStableButtons[outputIndex] = state[outputIndex].buttons;
     
         if(stateChanged) {
           #ifdef ENABLE_REFLEX_PAD
@@ -500,6 +513,7 @@ class ReflexInputPsx : public RZInputModule {
     bool read() override {
       static bool isReadSuccess[] = {false,false};
       static bool isEnabled[] = {false,false};
+      static uint8_t readFailCount[] = {0,0};
       bool stateChanged = false;
     
       outputIndex = 0;
@@ -606,6 +620,7 @@ class ReflexInputPsx : public RZInputModule {
           if (!haveController[i]) {
             if (psx->begin()) {
               haveController[i] = true;
+              readFailCount[i] = 0;
               tryEnableRumble();
               ShowDefaultPadPsx(i, psx->getProtocol());
             }
@@ -620,8 +635,11 @@ class ReflexInputPsx : public RZInputModule {
               psx->setRumble (rumble[i].right_power != 0x0, rumble[i].left_power);
             #endif
             isReadSuccess[i] = psx->read();
-            if (!isReadSuccess[i]){ //debug (F("Controller lost.")); debug (F(" last values: x = ")); debug (lastX); debug (F(", y = ")); debugln (lastY);
+            if (isReadSuccess[i]) {
+              readFailCount[i] = 0;
+            } else if (++readFailCount[i] >= 2){ //debug (F("Controller lost.")); debug (F(" last values: x = ")); debug (lastX); debug (F(", y = ")); debugln (lastY);
               haveController[i] = false;
+              readFailCount[i] = 0;
               ShowDefaultPadPsx(i, PSPROTO_UNKNOWN);
             }
           }

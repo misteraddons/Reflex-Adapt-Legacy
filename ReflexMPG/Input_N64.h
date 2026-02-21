@@ -166,6 +166,7 @@ class ReflexInputN64 : public RZInputModule {
       static uint16_t oldButtons[] = { 0, 0 };
       static int8_t oldX[] = { 0, 0 };
       static int8_t oldY[] = { 0, 0 };
+      static uint8_t readFailCount[] = { 0, 0 };
 
       #ifdef ENABLE_REFLEX_PAD
         //static bool firstTime = true;
@@ -258,6 +259,7 @@ static bool isReadSuccess[] = {false,false};
         if (!haveController[i]) {
           if (n64->begin()) {
             haveController[i] = true;
+            readFailCount[i] = 0;
 //            tryEnableRumble();
             n64ResetJoyValues(i);
             #ifdef ENABLE_REFLEX_PAD
@@ -274,18 +276,20 @@ static bool isReadSuccess[] = {false,false};
 //          #else
 //            psx->setRumble (rumble[i].right_power != 0x0, rumble[i].left_power);
 //          #endif
-          isReadSuccess[i] = n64->read() && n64->getData().status.device != NINTENDO_DEVICE_N64_NONE;
-
-	  if (isReadSuccess[i])
-  	    n64data[i] = n64->getData();
-
-          if (isReadSuccess[i] && options.inputMode == INPUT_MODE_XINPUT) {
-            n64->setRumble(rumble[i].left_power != 0x0 || rumble[i].right_power != 0x0);
+          if (n64->read()) {
+            n64data[i] = n64->getData();
+            isReadSuccess[i] = n64data[i].status.device != NINTENDO_DEVICE_N64_NONE;
           }
-          
-          //controller just removed?
-          if (!isReadSuccess[i]){
+
+          if (isReadSuccess[i]) {
+            readFailCount[i] = 0;
+            if (options.inputMode == INPUT_MODE_XINPUT) {
+              n64->setRumble(rumble[i].left_power != 0x0 || rumble[i].right_power != 0x0);
+            }
+          } else if (++readFailCount[i] >= 2) {
+            // Require two consecutive failures before dropping to reduce transient disconnects.
             haveController[i] = false;
+            readFailCount[i] = 0;
             n64ResetJoyValues(i);
             #ifdef ENABLE_REFLEX_PAD
               showDefaultPadN64(i, false);
@@ -310,7 +314,7 @@ static bool isReadSuccess[] = {false,false};
 
     
       for (uint8_t i = 0; i < totalUsb; ++i) {
-        if (haveController[i]) {
+        if (haveController[i] && isReadSuccess[i]) {
           //controller read sucess
       
           const uint16_t digitalData = (n64data[i].report.buttons0 << 12) + (n64data[i].report.dpad << 8) + (n64data[i].report.buttons1 << 4) + n64data[i].report.cpad;
