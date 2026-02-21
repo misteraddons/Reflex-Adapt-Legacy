@@ -185,8 +185,6 @@ class ReflexInputN64 : public RZInputModule {
             //isEnabled[i] = n64list[i]->read();
             isEnabled[i] = haveController[i] || (haveController[i] = n64list[i]->begin());
             
-            if (isEnabled[0] || isEnabled[1])
-              delayMicroseconds(sleepTime);
           }
           
           #ifdef ENABLE_REFLEX_PAD
@@ -406,6 +404,9 @@ static bool isReadSuccess[] = {false,false};
       }//end for
     
     
+      if (haveController[0] || haveController[1])
+        delayMicroseconds(2500); // N64-compatible polling cadence
+
       return stateChanged[0] || stateChanged[1]; //joyCount != 0;
     }//end read
 
