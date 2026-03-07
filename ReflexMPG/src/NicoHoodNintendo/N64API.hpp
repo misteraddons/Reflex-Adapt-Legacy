@@ -70,8 +70,8 @@ bool CN64Controller::begin(void)
         n64_setRumble(pin, false);
     }
     
-    // A small delay is required between begin() and read()
-    delayMicroseconds(100);
+    // Some wireless N64 receivers need a longer settle time between init and first poll.
+    delayMicroseconds(2500);
 
     // No error
     return true;

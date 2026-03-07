@@ -42,7 +42,12 @@ const byte PIN_PS6_ATT = 20;//A2
 const uint8_t SPECIALMASK_POPN = 0xE;
 const uint8_t SPECIALMASK_JET  = 0xC;
 
-static const uint8_t PS_INTERVAL_DEFAULT  = 250;
+#ifdef PSX_1200_TEST
+  static const uint8_t PS_INTERVAL_DEFAULT  = 500;
+  static const uint8_t PS_ANALOG_INIT_MAX_ATTEMPTS = 2;
+#else
+  static const uint8_t PS_INTERVAL_DEFAULT  = 250;
+#endif
 static const uint16_t PS_INTERVAL_JET  = 1000;
 static const uint16_t PS_INTERVAL_DS2  = 3000;
 
@@ -65,10 +70,18 @@ class ReflexInputPsx : public RZInputModule {
     bool enableMouseMove { false }; //used on guncon and jogcon modes
     uint8_t outputIndex { 0 };
 
-    void tryEnableRumble() {
+    void tryEnableRumble(
+      #ifdef PSX_1200_TEST
+        const bool forceAnalogMode = false
+      #endif
+    ) {
       //if ((options.inputMode == INPUT_MODE_XINPUT || detectDS2) && !isJogcon){ //try to enable rumble
       if (!isJogcon){ //try to enable rumble
         if (psx->enterConfigMode ()) {
+          #ifdef PSX_1200_TEST
+            if (forceAnalogMode || (!isNeGcon && !isGuncon))
+              psx->enableAnalogSticks (true, false);
+          #endif
           psx->enableRumble ();
           if (psx->getControllerType () == PSCTRL_DUALSHOCK2) {
             sleepTime = PS_INTERVAL_DS2;
@@ -208,6 +221,8 @@ class ReflexInputPsx : public RZInputModule {
       static byte lastLY[] = { ANALOG_IDLE_VALUE, ANALOG_IDLE_VALUE };
       static byte lastRX[] = { ANALOG_IDLE_VALUE, ANALOG_IDLE_VALUE };
       static byte lastRY[] = { ANALOG_IDLE_VALUE, ANALOG_IDLE_VALUE };
+      static uint8_t lastStableDpad[] = { 0, 0 };
+      static uint16_t lastStableButtons[] = { 0, 0 };
     
       #ifdef ENABLE_REFLEX_PAD
         static PsxControllerProtocol lastPadType[] = { PSPROTO_UNKNOWN, PSPROTO_UNKNOWN };
@@ -219,8 +234,8 @@ class ReflexInputPsx : public RZInputModule {
       byte analogY = ANALOG_IDLE_VALUE;
       //word convertedX, convertedY;
     
-      const bool digitalStateChanged = psx->buttonsChanged();//check if any digital value changed (dpad and buttons)
-      bool stateChanged = digitalStateChanged;
+      bool digitalStateChanged = false;
+      bool stateChanged = false;
       
       const PsxControllerProtocol proto = psx->getProtocol();
     
@@ -258,6 +273,15 @@ class ReflexInputPsx : public RZInputModule {
           | (psx->buttonPressed(PSB_L3)       ? GAMEPAD_MASK_L3 : 0) // All: Left Stick Click
           | (psx->buttonPressed(PSB_R3)       ? GAMEPAD_MASK_R3 : 0) // All: Right Stick Click
         ;
+
+        // Ignore obvious one-frame D-pad corruption without changing normal input latency.
+        if (specialDpadMask == 0x0
+         && state[outputIndex].dpad == (GAMEPAD_MASK_UP | GAMEPAD_MASK_DOWN | GAMEPAD_MASK_LEFT | GAMEPAD_MASK_RIGHT)) {
+          state[outputIndex].dpad = lastStableDpad[outputIndex];
+        }
+        digitalStateChanged = state[outputIndex].dpad != lastStableDpad[outputIndex]
+                           || state[outputIndex].buttons != lastStableButtons[outputIndex];
+        stateChanged = digitalStateChanged;
     
     
     //if(proto != PSPROTO_DIGITAL)
@@ -296,6 +320,8 @@ class ReflexInputPsx : public RZInputModule {
     
         lastRX[outputIndex] = analogX;
         lastRY[outputIndex] = analogY;
+        lastStableDpad[outputIndex] = state[outputIndex].dpad;
+        lastStableButtons[outputIndex] = state[outputIndex].buttons;
     
         if(stateChanged) {
           #ifdef ENABLE_REFLEX_PAD
@@ -500,6 +526,10 @@ class ReflexInputPsx : public RZInputModule {
     bool read() override {
       static bool isReadSuccess[] = {false,false};
       static bool isEnabled[] = {false,false};
+      static uint8_t readFailCount[] = {0,0};
+      #ifdef PSX_1200_TEST
+        static uint8_t analogInitAttempts[] = {0,0};
+      #endif
       bool stateChanged = false;
     
       outputIndex = 0;
@@ -606,7 +636,11 @@ class ReflexInputPsx : public RZInputModule {
           if (!haveController[i]) {
             if (psx->begin()) {
               haveController[i] = true;
+              readFailCount[i] = 0;
               tryEnableRumble();
+              #ifdef PSX_1200_TEST
+                analogInitAttempts[i] = 0;
+              #endif
               ShowDefaultPadPsx(i, psx->getProtocol());
             }
           } else {
@@ -620,16 +654,34 @@ class ReflexInputPsx : public RZInputModule {
               psx->setRumble (rumble[i].right_power != 0x0, rumble[i].left_power);
             #endif
             isReadSuccess[i] = psx->read();
-            if (!isReadSuccess[i]){ //debug (F("Controller lost.")); debug (F(" last values: x = ")); debug (lastX); debug (F(", y = ")); debugln (lastY);
+            #ifdef PSX_1200_TEST
+              if (isReadSuccess[i] && !isNeGcon && !isGuncon) {
+                const PsxControllerProtocol currentProto = psx->getProtocol();
+                if (currentProto == PSPROTO_DIGITAL && analogInitAttempts[i] < PS_ANALOG_INIT_MAX_ATTEMPTS) {
+                  ++analogInitAttempts[i];
+                  tryEnableRumble(true);
+                  isReadSuccess[i] = psx->read();
+                } else if (currentProto != PSPROTO_DIGITAL) {
+                  analogInitAttempts[i] = PS_ANALOG_INIT_MAX_ATTEMPTS;
+                }
+              }
+            #endif
+            if (isReadSuccess[i]) {
+              readFailCount[i] = 0;
+            } else if (++readFailCount[i] >= 2){ //debug (F("Controller lost.")); debug (F(" last values: x = ")); debug (lastX); debug (F(", y = ")); debugln (lastY);
               haveController[i] = false;
+              readFailCount[i] = 0;
+              #ifdef PSX_1200_TEST
+                analogInitAttempts[i] = 0;
+              #endif
               ShowDefaultPadPsx(i, PSPROTO_UNKNOWN);
             }
           }
           if(isGuncon)//only use first port for guncon
             break;
         }
-    
-    
+     
+     
         for (uint8_t i = 0; i < totalUsb; i++) {
           if (haveController[i] && isReadSuccess[i]) {
             psx = psxlist[i];

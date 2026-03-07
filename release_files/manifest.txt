@@ -13,3 +13,5 @@ firmware/MPGCombo10.hex,Combo 10: Gen+Sat, Neo, N64 & GC
 firmware/MPGCombo11.hex,Combo 11: PSX, 3DO & Wii
 firmware/MPGCombo12.hex,Combo 12: NES+SNES, Gen+Sat, Neo & GC
 firmware/MPGCombo13.hex,Combo 13: NES+SNES, PSX, Jaguar & Wii
+firmware/MPGPSX1200Test.hex,PSX-1200 Test: PSX analog init retries for SCPH-1200
+firmware/MPGVBNSO.hex,VB NSO: NES+SNES+VB with VB right D-pad on right stick

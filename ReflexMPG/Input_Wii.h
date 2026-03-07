@@ -420,27 +420,27 @@ class ReflexInputWii : public RZInputModule {
 
             #ifndef WII_ANALOG_RAW
               //shift to center
-              leftX -= wii_lx_shift;
-              leftY -= wii_ly_shift;
-              rightX -= wii_rx_shift;
-              rightY -= wii_ry_shift;
+              int16_t leftXi = static_cast<int16_t>(leftX) - wii_lx_shift;
+              int16_t leftYi = static_cast<int16_t>(leftY) - wii_ly_shift;
+              int16_t rightXi = static_cast<int16_t>(rightX) - wii_rx_shift;
+              int16_t rightYi = static_cast<int16_t>(rightY) - wii_ry_shift;
               
               //clamp
-              if (leftX < wii_analog_stick_min) leftX = wii_analog_stick_min;
-              else if (leftX > wii_analog_stick_max) leftX = wii_analog_stick_max;
-              if (leftY < wii_analog_stick_min) leftY = wii_analog_stick_min;
-              else if (leftY > wii_analog_stick_max) leftY = wii_analog_stick_max;
+              if (leftXi < wii_analog_stick_min) leftXi = wii_analog_stick_min;
+              else if (leftXi > wii_analog_stick_max) leftXi = wii_analog_stick_max;
+              if (leftYi < wii_analog_stick_min) leftYi = wii_analog_stick_min;
+              else if (leftYi > wii_analog_stick_max) leftYi = wii_analog_stick_max;
 
-              if (rightX < wii_analog_stick_min) rightX = wii_analog_stick_min;
-              else if (rightX > wii_analog_stick_max) rightX = wii_analog_stick_max;
-              if (rightY < wii_analog_stick_min) rightY = wii_analog_stick_min;
-              else if (rightY > wii_analog_stick_max) rightY = wii_analog_stick_max;
+              if (rightXi < wii_analog_stick_min) rightXi = wii_analog_stick_min;
+              else if (rightXi > wii_analog_stick_max) rightXi = wii_analog_stick_max;
+              if (rightYi < wii_analog_stick_min) rightYi = wii_analog_stick_min;
+              else if (rightYi > wii_analog_stick_max) rightYi = wii_analog_stick_max;
 
               //scale
-              leftX =  map(leftX,  wii_analog_stick_min, wii_analog_stick_max, 0, 255);
-              leftY =  map(leftY,  wii_analog_stick_min, wii_analog_stick_max, 0, 255);
-              rightX = map(rightX, wii_analog_stick_min, wii_analog_stick_max, 0, 255);
-              rightY = map(rightY, wii_analog_stick_min, wii_analog_stick_max, 0, 255);
+              leftX =  static_cast<uint8_t>(map(leftXi,  wii_analog_stick_min, wii_analog_stick_max, 0, 255));
+              leftY =  static_cast<uint8_t>(map(leftYi,  wii_analog_stick_min, wii_analog_stick_max, 0, 255));
+              rightX = static_cast<uint8_t>(map(rightXi, wii_analog_stick_min, wii_analog_stick_max, 0, 255));
+              rightY = static_cast<uint8_t>(map(rightYi, wii_analog_stick_min, wii_analog_stick_max, 0, 255));
             #endif
                 
             state[0].lx = convertAnalog( leftX);

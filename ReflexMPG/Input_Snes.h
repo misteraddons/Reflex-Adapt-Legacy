@@ -45,8 +45,8 @@ class ReflexInputSnes : public RZInputModule {
       SnesPort<SNES1_CLOCK, SNES1_LATCH, SNES1_DATA1, SNES1_DATA2, SNES1_SELECT> snes1;
       SnesPort<SNES2_CLOCK, SNES2_LATCH, SNES2_DATA1, SNES2_DATA2, SNES2_SELECT> snes2;
     #else
-      SnesPort<SNES1_CLOCK, SNES1_LATCH, SNES1_DATA1> snes1;
-      SnesPort<SNES2_CLOCK, SNES2_LATCH, SNES2_DATA1> snes2;
+      SnesPort<SNES1_CLOCK, SNES1_LATCH, SNES1_DATA1, SNES1_SELECT> snes1;
+      SnesPort<SNES2_CLOCK, SNES2_LATCH, SNES2_DATA1, SNES2_SELECT> snes2;
     #endif
 
     bool isVirtualBoy {false};
@@ -217,6 +217,13 @@ class ReflexInputSnes : public RZInputModule {
     
       #endif
       bool stateChanged = false;
+
+      #if !defined(SNES_MULTI_CONNECTION) && !defined(SNES_ENABLE_MULTITAP)
+      // SNES RumbleTech (Doom FX3) is supported on port 1, without multitap.
+      // Packet lower byte is [RRRR][LLLL], using upper nibble of each motor.
+      const uint8_t rumbleData = (rumble[0].left_power & 0xF0) | (rumble[0].right_power >> 4);
+      snes1.queueRumble(rumbleData);
+      #endif
     
       //Read snes port
       snes1.update();
@@ -249,6 +256,7 @@ class ReflexInputSnes : public RZInputModule {
         //Only process data if state changed from previous read
         if(sc.stateChanged()) {
           stateChanged = true;
+          hasRightAnalogStick[i] = false;
           
           //Controller just connected.
           if (sc.deviceJustChanged()) {
@@ -275,6 +283,28 @@ class ReflexInputSnes : public RZInputModule {
               | (sc.digitalPressed(SNES_Y) ? GAMEPAD_MASK_B2 : 0) // Generic: K2, Switch: A, Xbox: B
             ;
           } else {
+            #if defined(SNES_ENABLE_VBOY) && defined(SNES_VBOY_RIGHT_DPAD_TO_RSTICK)
+            if (padType == SNES_DEVICE_VB) {
+              const uint8_t vbRightDpad = 0
+                | (sc.digitalPressed(SNES_X) ? GAMEPAD_MASK_UP    : 0)
+                | (sc.digitalPressed(SNES_B) ? GAMEPAD_MASK_DOWN  : 0)
+                | (sc.digitalPressed(SNES_Y) ? GAMEPAD_MASK_LEFT  : 0)
+                | (sc.digitalPressed(SNES_A) ? GAMEPAD_MASK_RIGHT : 0)
+              ;
+
+              state[i].rx = dpadToAnalogX(vbRightDpad);
+              state[i].ry = dpadToAnalogY(vbRightDpad);
+              hasRightAnalogStick[i] = true;
+
+              state[i].buttons = 0
+                | (sc.nttPressed(SNES_NTT_0) ? GAMEPAD_MASK_B1 : 0) // VB B -> Generic: K1, Switch: B, Xbox: A
+                | (sc.nttPressed(SNES_NTT_1) ? GAMEPAD_MASK_B2 : 0) // VB A -> Generic: K2, Switch: A, Xbox: B
+                | (sc.digitalPressed(SNES_L) ? GAMEPAD_MASK_L1 : 0) // Generic: P4, Switch: L, Xbox: LB
+                | (sc.digitalPressed(SNES_R) ? GAMEPAD_MASK_R1 : 0) // Generic: P3, Switch: R, Xbox: RB
+              ;
+            } else
+            #endif
+            {
             state[i].buttons = 0
               | (sc.digitalPressed(SNES_B) ? GAMEPAD_MASK_B1 : 0) // Generic: K1, Switch: B, Xbox: A
               | (sc.digitalPressed(SNES_A) ? GAMEPAD_MASK_B2 : 0) // Generic: K2, Switch: A, Xbox: B
@@ -289,6 +319,7 @@ class ReflexInputSnes : public RZInputModule {
               //| (sc.digitalPressed(LCLICK) ? GAMEPAD_MASK_L3 : 0) // All: Left Stick Click
               //| (sc.digitalPressed(RCLICK) ? GAMEPAD_MASK_R3 : 0) // All: Right Stick Click
             ;
+            }
     
             if(padType == SNES_DEVICE_NTT) {
               state[i].buttons |=
@@ -314,10 +345,12 @@ class ReflexInputSnes : public RZInputModule {
               ;
             
             } else if(padType == SNES_DEVICE_VB) {
+              #ifndef SNES_VBOY_RIGHT_DPAD_TO_RSTICK
               state[i].buttons |=
                   (sc.nttPressed(SNES_NTT_0) ? GAMEPAD_MASK_L2 : 0) // Generic: K4, Switch: ZL, Xbox: LT (Digital)
                 | (sc.nttPressed(SNES_NTT_1) ? GAMEPAD_MASK_R2 : 0) // Generic: K3, Switch: ZR, Xbox: RT (Digital)
               ;
+              #endif
             }
           }
 
@@ -325,6 +358,15 @@ class ReflexInputSnes : public RZInputModule {
               (sc.digitalPressed(SNES_SELECT) ? GAMEPAD_MASK_S1 : 0) // Generic: Select, Switch: -, Xbox: View
             | (sc.digitalPressed(SNES_START) ? GAMEPAD_MASK_S2 : 0) // Generic: Start, Switch: +, Xbox: Menu
           ;
+
+          #if defined(SNES_ENABLE_VBOY) && defined(SNES_VBOY_RIGHT_DPAD_TO_RSTICK)
+          if (padType == SNES_DEVICE_VB && sc.digitalPressed(SNES_START)) {
+            state[i].buttons |=
+                (sc.digitalPressed(SNES_L) ? GAMEPAD_MASK_L2 : 0) // Generic: K4, Switch: ZL, Xbox: LT (Digital)
+              | (sc.digitalPressed(SNES_R) ? GAMEPAD_MASK_R2 : 0) // Generic: K3, Switch: ZR, Xbox: RT (Digital)
+            ;
+          }
+          #endif
 
           #ifdef ENABLE_REFLEX_PAD
             //Only used if not in multitap mode

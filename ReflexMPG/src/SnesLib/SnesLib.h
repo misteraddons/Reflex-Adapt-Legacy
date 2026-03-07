@@ -170,7 +170,7 @@ class SnesController {
       #error "Invalid value for SNES_MULTI_CONNECTION"
     #endif
   #else //single port without multitap support
-    template <uint8_t PIN_CLOCK, uint8_t PIN_LATCH, uint8_t PIN_DATA1>
+    template <uint8_t PIN_CLOCK, uint8_t PIN_LATCH, uint8_t PIN_DATA1, uint8_t PIN_SELECT>
   #endif
 #endif
 
@@ -194,12 +194,18 @@ class SnesPort {
         #if SNES_MULTI_CONNECTION > 3
           DigitalPin<PIN_DATA4> SNES_DATA4;
         #endif
+      #else
+        DigitalPin<PIN_SELECT> SNES_SELECT;
       #endif
     #endif
 
     uint8_t joyCount = 0;
     uint8_t multitapPorts = 0;
     SnesController controllers[SNES_MAX_CTRL];
+
+    #if !defined(SNES_MULTI_CONNECTION) && !defined(SNES_ENABLE_MULTITAP)
+      uint8_t queuedRumbleData = 0;
+    #endif
 
     #ifdef SNES_ENABLE_MULTITAP
     void detectMultiTap() {
@@ -369,13 +375,23 @@ class SnesPort {
       //Do the strobe to start reading button values
       //doStrobe();
 
+      #if !defined(SNES_MULTI_CONNECTION) && !defined(SNES_ENABLE_MULTITAP)
+        uint16_t rumblePacket = (uint16_t(0x72) << 8) | queuedRumbleData;
+      #endif
       for (i = 0; i < 16; i++) {
+        #if !defined(SNES_MULTI_CONNECTION) && !defined(SNES_ENABLE_MULTITAP)
+          SNES_SELECT.write((rumblePacket & 0x8000) ? HIGH : LOW);
+          rumblePacket <<= 1;
+        #endif
         //read the value, shift it and store it as a bit on fromController:
         fromController |= SNES_DATA1 << i;
 
         //More one cycle on the clock pin...
         doClockCicle();
       }
+      #if !defined(SNES_MULTI_CONNECTION) && !defined(SNES_ENABLE_MULTITAP)
+        SNES_SELECT.write(LOW);
+      #endif
 
       const uint8_t id1 = (fromController >> 12);
       const uint8_t extend = getExtendCount(id1);
@@ -462,6 +478,9 @@ class SnesPort {
         #if SNES_MULTI_CONNECTION > 3
           SNES_DATA4.config(INPUT, HIGH);
         #endif
+        #ifndef SNES_MULTI_CONNECTION
+          SNES_SELECT.config(OUTPUT, LOW);
+        #endif
       #endif
     }
 
@@ -495,13 +514,19 @@ class SnesPort {
           getSnesController(i).reset(true, false);
         }
       }
-      
+
     }
 
     SnesController& getSnesController(const uint8_t i) { return controllers[min(i, SNES_MAX_CTRL)]; }
 
     uint8_t getMultitapPorts() const { return multitapPorts; }
     uint8_t getControllerCount() const { return joyCount; }
+
+    #if !defined(SNES_MULTI_CONNECTION) && !defined(SNES_ENABLE_MULTITAP)
+      void queueRumble(const uint8_t rumbleData) {
+        queuedRumbleData = rumbleData;
+      }
+    #endif
 };
 
 #endif

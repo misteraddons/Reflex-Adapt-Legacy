@@ -23,7 +23,7 @@ jobs:
         run: arduino-cli core install Arduino-LUFA:avr --additional-urls https://github.com/Palatis/Arduino-Lufa/raw/master/package_arduino-lufa_index.json
       - name: Build All
         run: make all
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: firmware
           path: firmware/
