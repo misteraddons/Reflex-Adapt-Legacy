@@ -26,11 +26,11 @@ on:
 jobs:
   updater:
     name: Build Updater Tool
-    uses: misteraddons/Reflex-Adapt/.github/workflows/updater.yml@vb-right-dpad-to-rstick
+    uses: misteraddons/Reflex-Adapt/.github/workflows/updater.yml@main
     secrets: inherit
   firmware:
     name: Build Firmware
-    uses: misteraddons/Reflex-Adapt/.github/workflows/firmware.yml@vb-right-dpad-to-rstick
+    uses: misteraddons/Reflex-Adapt/.github/workflows/firmware.yml@main
   assemble:
     name: Create Release
     runs-on: ubuntu-latest
