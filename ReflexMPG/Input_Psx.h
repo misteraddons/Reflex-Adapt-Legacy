@@ -633,6 +633,8 @@ class ReflexInputPsx : public RZInputModule {
           if (!isEnabled[i])
             continue;
           
+          delay(2);
+
           if (!haveController[i]) {
             if (psx->begin()) {
               haveController[i] = true;
