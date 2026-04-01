@@ -7,7 +7,11 @@
  * Time between attention being issued to the controller and the first clock
  * edge (us).
  */
+#ifdef PSX_1200_TEST
+const byte ATTN_DELAY = 130;
+#else
 const byte ATTN_DELAY = 50;
+#endif
 //const byte ATTN_DELAY = 130; //taito's jet de go requires this
 
 // Set up the speed, data order and data mode
