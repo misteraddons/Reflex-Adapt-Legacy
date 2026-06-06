@@ -8,8 +8,8 @@ import time
 from zipfile import ZipFile
 from typing import TypedDict, Union, Optional
 
-DB_FILE = "reflexadapt.json"
-DB_ID = "misteraddons/reflexadapt"
+DB_FILE = "reflex-adapt-legacy.json"
+DB_ID = "misteraddons/reflex-adapt-legacy"
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 MAPPINGS_DIR = os.path.join(SCRIPT_DIR, "config", "inputs")
 MAPPING_SUFFIX = "_v3.map"
@@ -17,8 +17,8 @@ CONFIGS_DIR = os.path.join(SCRIPT_DIR, "config")
 CONFIG_SUFFIX = ".cfg"
 MISTER_INPUTS_DIR = "config/inputs"
 MISTER_CONFIGS_DIR = "config"
-DOWNLOAD_BASE_URL = "https://github.com/misteraddons/Reflex-Adapt/raw/main/mister/"
-UPDATER_URL = "https://github.com/misteraddons/Reflex-Adapt/releases/download/{}/reflex_updater.sh"
+DOWNLOAD_BASE_URL = "https://github.com/misteraddons/Reflex-Adapt-Legacy/raw/main/mister/"
+UPDATER_URL = "https://github.com/misteraddons/Reflex-Adapt-Legacy/releases/download/{}/reflex_updater.sh"
 
 
 class RepoDbFilesItem(TypedDict):

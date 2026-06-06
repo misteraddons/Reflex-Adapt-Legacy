@@ -2,8 +2,8 @@
 
 <a href="https://misteraddons.com/collections/parts/products/reflex-adapt"><img src="images/purchase.png" alt="Purchase Reflex Adapt" title="Purchase Reflex Adapt" width="200"></a>
 
-<a href="https://github.com/misteraddons/Reflex-Adapt/releases/download/v2.01/reflex-v2.01.zip"><img src="images/desktop-download.png" alt="Download Windows/Mac/Linux updater" title="Download Windows/Mac/Linux updater" width="140"></a>
-<a href="https://github.com/misteraddons/Reflex-Adapt/releases/latest/download/reflex_updater.sh"><img src="images/mister-download.png" alt="Download MiSTer updater" title="Download MiSTer updater" width="140"></a>
+<a href="https://github.com/misteraddons/Reflex-Adapt-Legacy/releases/download/v2.01/reflex-v2.01.zip"><img src="images/desktop-download.png" alt="Download Windows/Mac/Linux updater" title="Download Windows/Mac/Linux updater" width="140"></a>
+<a href="https://github.com/misteraddons/Reflex-Adapt-Legacy/releases/latest/download/reflex_updater.sh"><img src="images/mister-download.png" alt="Download MiSTer updater" title="Download MiSTer updater" width="140"></a>
 
 
 Reflex Adapt converts original gaming input devices to USB for use with MiSTer/PC/Linux/Mac. The controllers show up as direct input devices and feature very low latency. 
@@ -18,7 +18,7 @@ If you would like a specific combo added, please create an Issue.
 
 ## MiSTer Installation
 
-1. Download [reflex_updater.sh](https://github.com/misteraddons/Reflex-Adapt/releases/latest/download/reflex_updater.sh) and copy it to the `Scripts` folder on your MiSTer's SD card
+1. Download [reflex_updater.sh](https://github.com/misteraddons/Reflex-Adapt-Legacy/releases/latest/download/reflex_updater.sh) and copy it to the `Scripts` folder on your MiSTer's SD card
 2. Launch the `reflex_updater` script from the Scripts menu on your MiSTer
 3. When prompted, agree to have the Reflex Adapt repository added
 4. Flash your Reflex Adapt with the desired firmware configuration and exit the updater
@@ -29,8 +29,8 @@ The Reflex Adapt updater, controller mappings and core configs will now be autom
 Alternatively, manually add the following to your `downloader.ini` file on the SD card:
 
 ```
-[misteraddons/reflexadapt]
-db_url = https://github.com/misteraddons/Reflex-Adapt/raw/main/reflexadapt.json.zip
+[misteraddons/reflex-adapt-legacy]
+db_url = https://github.com/misteraddons/Reflex-Adapt-Legacy/raw/main/reflex-adapt-legacy.json.zip
 ```
 
 ## Building Firmware on Linux

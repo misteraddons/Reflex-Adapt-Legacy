@@ -22,10 +22,10 @@ const (
 	reflexBinName     = "reflex-linux-armv7"
 	adaptQuirks       = "0x16d0:0x127e:0x040"
 	adaptVidPid       = "0x16d0127e"
-	dbName            = "misteraddons/reflexadapt"
-	dbUrl             = "https://github.com/misteraddons/Reflex-Adapt/raw/main/reflexadapt.json.zip"
+	dbName            = "misteraddons/reflex-adapt-legacy"
+	dbUrl             = "https://github.com/misteraddons/Reflex-Adapt-Legacy/raw/main/reflex-adapt-legacy.json.zip"
 	configFolder      = config.ScriptsConfigFolder + "/reflex"
-	noDbFile          = configFolder + "/.no-db-reflexadapt"
+	noDbFile          = configFolder + "/.no-db-reflex-adapt-legacy"
 )
 
 //go:embed _files
