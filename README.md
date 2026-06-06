@@ -29,8 +29,8 @@ The Reflex Adapt updater, controller mappings and core configs will now be autom
 Alternatively, manually add the following to your `downloader.ini` file on the SD card:
 
 ```
-[misteraddons/reflexadapt]
-db_url = https://github.com/misteraddons/Reflex-Adapt/raw/main/reflexadapt.json.zip
+[misteraddons/reflex-adapt-legacy]
+db_url = https://github.com/misteraddons/Reflex-Adapt-Legacy/raw/main/reflex-adapt-legacy.json.zip
 ```
 
 ## Building Firmware on Linux
