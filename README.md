@@ -30,7 +30,7 @@ Alternatively, manually add the following to your `downloader.ini` file on the S
 
 ```
 [misteraddons/reflex-adapt-legacy]
-db_url = https://github.com/misteraddons/Reflex-Adapt-Legacy/raw/main/reflex-adapt-legacy.json.zip
+db_url = https://github.com/misteraddons/Reflex-Adapt-Legacy/raw/main/reflexadapt.json.zip
 ```
 
 ## Building Firmware on Linux
