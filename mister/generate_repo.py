@@ -17,7 +17,7 @@ CONFIGS_DIR = os.path.join(SCRIPT_DIR, "config")
 CONFIG_SUFFIX = ".cfg"
 MISTER_INPUTS_DIR = "config/inputs"
 MISTER_CONFIGS_DIR = "config"
-DOWNLOAD_BASE_URL = "https://github.com/misteraddons/Reflex-Adapt-Legacy/raw/main/mister/"
+DOWNLOAD_BASE_URL = "https://raw.githubusercontent.com/misteraddons/Reflex-Adapt-Legacy/main/mister/"
 UPDATER_URL = "https://github.com/misteraddons/Reflex-Adapt-Legacy/releases/download/{}/reflex_updater.sh"
 
 

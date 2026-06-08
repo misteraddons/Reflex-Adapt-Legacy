@@ -23,7 +23,7 @@ const (
 	adaptQuirks       = "0x16d0:0x127e:0x040"
 	adaptVidPid       = "0x16d0127e"
 	dbName            = "misteraddons/reflex-adapt-legacy"
-	dbUrl             = "https://github.com/misteraddons/Reflex-Adapt-Legacy/raw/main/reflex-adapt-legacy.json.zip"
+	dbUrl             = "https://raw.githubusercontent.com/misteraddons/Reflex-Adapt-Legacy/main/reflex-adapt-legacy.json.zip"
 	configFolder      = config.ScriptsConfigFolder + "/reflex"
 	noDbFile          = configFolder + "/.no-db-reflex-adapt-legacy"
 )
@@ -214,11 +214,16 @@ func tryUpdateUboot() (bool, error) {
 // tryAddDb prompts if the user wants the updater repo db added to their downloader.ini file. Optionally, they can
 // say no and the check will be disabled.
 func tryAddDb() (bool, error) {
-	//_ = os.MkdirAll(configFolder, 0755)
-	//
-	//if _, err := os.Stat(noDbFile); err == nil {
-	//	return false, nil
-	//}
+	err := os.MkdirAll(configFolder, 0755)
+	if err != nil {
+		return false, err
+	}
+
+	if _, err := os.Stat(noDbFile); err == nil {
+		return false, nil
+	} else if !os.IsNotExist(err) {
+		return false, err
+	}
 
 	downloadIni, err := mister.LoadDownloaderIni()
 	if err != nil {
