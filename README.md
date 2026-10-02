@@ -35,13 +35,14 @@ db_url = https://raw.githubusercontent.com/misteraddons/Reflex-Adapt-Legacy/main
 
 ## Building Firmware on Linux
 1. Clone the repo and cd into the directory
-2. Install [Arduino-cli](https://arduino.github.io/arduino-cli/installation): Use brew or the install script.
+2. Install [Arduino CLI](https://arduino.github.io/arduino-cli/installation): Use brew or the install script.
 3. If you installed with the install script add to PATH
 4. Install arduino:avr core `arduino-cli core install arduino:avr`
 5. Install Arduino-LUFA:avr core `arduino-cli core install Arduino-LUFA:avr --additional-urls https://github.com/Palatis/Arduino-Lufa/raw/master/package_arduino-lufa_index.json`
 6. make all
 
-## Building reflex_updater
+## Building reflex_updater (Cross Compiling on Linux to build for MiSTer)
 1. install [Rust](https://www.rust-lang.org/tools/install)
-2. cd reflex_updater
-3. cargo run or cargo build
+2. `cargo install cargo-cross`
+2. `cd reflex_updater`
+3. `cargo cross build --release --target armv7-unknown-linux-musleabihf`

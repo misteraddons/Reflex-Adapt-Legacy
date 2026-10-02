@@ -39,6 +39,14 @@
 #define SNES2_DATA2  14
 #define SNES2_SELECT  16
 
+//A NES controller can misread as VB for a read or two right on insertion
+//(shared id bit before the id line settles). Require the new reading to hold
+//steady for this long before acting on it.
+#define VB_DEBOUNCE_MS 30
+
+#define USB_ID_SNES "RZMSnes"
+#define USB_ID_VB   "RZMVboy"
+
 class ReflexInputSnes : public RZInputModule {
   private:
     #ifdef SNES_ENABLE_MULTITAP
@@ -120,36 +128,51 @@ class ReflexInputSnes : public RZInputModule {
           return;
       
         if (index < 2) {
-          //const uint8_t startCol = index == 0 ? 0 : 11*6;
+
           #ifdef SNES_ENABLE_VBOY
-          if (isVirtualBoy) {
+          if (padType == SNES_DEVICE_VB) {
             for(uint8_t x = 0; x < 14; ++x){
               const Pad pad = padVB[x];
               PrintPadChar(index, padDivision[index].firstCol, pad.col, pad.row, pad.padvalue, true, pad.on, pad.off, true);
             }
           } else 
           #endif
+
           {
             for(uint8_t x = 0; x < 12; ++x){
               if(padType == SNES_DEVICE_NES && x > 7)
                 continue;
+
               const Pad pad = (padType == SNES_DEVICE_NES && x < 4) ? padSnes[x+12] : padSnes[x]; //NES uses horizontal align
               PrintPadChar(index, padDivision[index].firstCol, pad.col, pad.row, pad.padvalue, true, pad.on, pad.off, true);
             }        
           }
-    
         }
       }
     
+    #endif
+
+    #ifdef SNES_ENABLE_VBOY
+      //Changes the USB serial string (used by MiSTer/host to tell VB and SNES/NTT pads apart)
+      //then does a soft USB disconnect/reattach, since the serial number string is only
+      //requested by the host once during enumeration and then cached.
+      void snesSetVirtualBoyMode(const bool vb)
+      {
+        isVirtualBoy = vb;
+        USB_STRING_VERSION = (char*)(vb ? USB_ID_VB : USB_ID_SNES);
+        setDeviceVersion(vb ? MODE_ID_VB : MODE_ID_SNES);
+
+        USB_Detach();
+        delay(250);
+        USB_Attach();
+      }
     #endif
     
   public:
     ReflexInputSnes() : RZInputModule() { }
 
     const char* getUsbId() override {
-      static const char* usbId1 { "RZMSnes" };
-      static const char* usbId2 { "RZMVboy" };
-      return isVirtualBoy ? usbId2 : usbId1;
+      return isVirtualBoy ? USB_ID_VB : USB_ID_SNES;
     }
 
     const uint16_t getUsbVersion() override {
@@ -190,9 +213,6 @@ class ReflexInputSnes : public RZInputModule {
         totalUsb = MAX_USB_STICKS; //min(tap, MAX_USB_STICKS);
         sleepTime = 1000; //use longer interval between reads for multitap
       }
-      //sleepTime = 50;
-    
-      //totalUsb = 4;
 
       delayMicroseconds(sleepTime);
     }
@@ -234,6 +254,35 @@ class ReflexInputSnes : public RZInputModule {
       const uint8_t joyCount1 = snes1.getControllerCount();
       const uint8_t joyCount2 = snes2.getControllerCount();
       const uint8_t joyCount = joyCount1 + joyCount2;
+
+      #ifdef SNES_ENABLE_VBOY
+        //Same VB detection done in setup(), re-checked every loop since controllers
+        //can be hot plugged/swapped/unplugged on port 1 (the only port this uses).
+        //Debounced: see VB_DEBOUNCE_MS above.
+        if (totalUsb == 2)  // totalUsb == 2 means no multitap connected (see setup())
+        {
+          //Starts equal to isVirtualBoy (not hardcoded false) so a boot-time VB
+          //controller doesn't look like an already-pending change to non-VB.
+          static bool pendingIsVirtualBoy = isVirtualBoy;
+          static unsigned long pendingSince = 0;
+
+          const bool currentIsVirtualBoy = joyCount1 != 0 && snes1.getSnesController(0).deviceType() == SNES_DEVICE_VB;
+          const unsigned long now = millis();
+
+          //Reading changed since last loop: restart its stability timer.
+          if (currentIsVirtualBoy != pendingIsVirtualBoy)
+          {
+            pendingIsVirtualBoy = currentIsVirtualBoy;
+            pendingSince = now;
+          }
+
+          //Reading disagrees with what we're set to, and has held long enough: apply it.
+          if (pendingIsVirtualBoy != isVirtualBoy && now - pendingSince >= VB_DEBOUNCE_MS)
+          {
+            snesSetVirtualBoyMode(pendingIsVirtualBoy);
+          }
+        }
+      #endif
     
       for (uint8_t i = 0; i < joyCount; ++i) {
         if (i == totalUsb)
@@ -371,29 +420,24 @@ class ReflexInputSnes : public RZInputModule {
           #ifdef ENABLE_REFLEX_PAD
             //Only used if not in multitap mode
             if (totalUsb == 2 && inputPort < 2) {
-              //const uint8_t startCol = inputPort == 0 ? 0 : 11*6;
     
               #ifdef SNES_ENABLE_VBOY
-                if (isVirtualBoy) {
+                if (padType == SNES_DEVICE_VB) {
                   for(uint8_t x = 0; x < 14; ++x){
-    //                if(padType == SNES_DEVICE_NES && x > 7)
-    //                  continue;
                     const Pad pad = padVB[x];
-                    if (x < 12) {
-                      if (padType == SNES_DEVICE_NES && x > 7)
-                        PrintPadChar(inputPort, padDivision[inputPort].firstCol, pad.col, pad.row, pad.padvalue, false, pad.on, pad.off);
-                      else
-                        PrintPadChar(inputPort, padDivision[inputPort].firstCol, pad.col, pad.row, pad.padvalue, sc.digitalPressed((SnesDigital_Enum)pad.padvalue), pad.on, pad.off);
-                    } else {
-                      PrintPadChar(inputPort, padDivision[inputPort].firstCol, pad.col, pad.row, pad.padvalue, padType == SNES_DEVICE_VB && sc.nttPressed((SnesDigitalNTT_Enum)(pad.padvalue >> 12)), pad.on, pad.off);
-                    }
+
+                    PrintPadChar(inputPort, padDivision[inputPort].firstCol, pad.col, pad.row, pad.padvalue,
+                      ((x < 12) ? sc.digitalPressed((SnesDigital_Enum)pad.padvalue) : sc.nttPressed((SnesDigitalNTT_Enum)(pad.padvalue >> 12))),
+                      pad.on, pad.off);
                   }
                 } else
               #endif
+
               {
                 for(uint8_t x = 0; x < 12; ++x){
                   if(padType == SNES_DEVICE_NES && x > 7)
                     continue;
+
                   const Pad pad = (padType == SNES_DEVICE_NES && x < 4) ? padSnes[x+12] : padSnes[x]; //NES uses horizontal align
                   PrintPadChar(inputPort, padDivision[inputPort].firstCol, pad.col, pad.row, pad.padvalue, sc.digitalPressed((SnesDigital_Enum)pad.padvalue), pad.on, pad.off);
                 }

@@ -80,7 +80,7 @@
 //Comment out (undefine) to use raw values.
 //Set as zero to use automatic map. Will calibrate and scale to full range.
 //Set a positive value to use it as the maximum value. It will be scaled to full range.
-#define N64_ANALOG_MAX 65
+//#define N64_ANALOG_MAX 65
 
 //GameCube config
 //Analog sticks range

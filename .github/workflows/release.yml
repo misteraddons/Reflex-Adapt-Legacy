@@ -98,8 +98,8 @@ jobs:
       - name: Tar Archive
         run: tar -czvhf "reflex-${{ inputs.tag }}.tar.gz" "reflex-${{ inputs.tag }}/"
 
-      - name: Build exact-tag MiSTer database
-        run: python3 mister/generate_repo.py "${{ inputs.tag }}" --files-ref "${{ inputs.tag }}" --updater mister/_bin/reflex_updater.sh
+      - name: Build MiSTer database pinned to release source
+        run: python3 mister/generate_repo.py "${{ inputs.tag }}" --files-ref "${{ github.sha }}" --updater mister/_bin/reflex_updater.sh
 
       - name: Commit generated distribution
         id: distribution_commit
@@ -123,3 +123,4 @@ jobs:
           target_commitish: ${{ steps.distribution_commit.outputs.commit_long_sha || github.sha }}
           body: ${{ inputs.release_desc }}
           draft: ${{ inputs.draft_release }}
+

@@ -44,6 +44,14 @@ void setupHardware(InputMode mode, const uint8_t interfaces, uint16_t devicevers
   GlobalInterruptEnable();
 }
 
+// Updates the bcdDevice reported in the device descriptor without a full re-init.
+// Caller is responsible for forcing re-enumeration (USB_Detach()/USB_Attach()) so
+// the host actually re-reads it, since it's normally only fetched once.
+void setDeviceVersion(uint16_t deviceversion)
+{
+  bcdDevice = deviceversion;
+}
+
 void sendReport(void *data, uint8_t size, RumbleReport* rumble, const uint8_t interface)
 {
   reportData = data;

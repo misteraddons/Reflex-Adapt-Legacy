@@ -1,3 +1,4 @@
 _files/*
 !_files/.gitkeep
+!_files/placeholder.txt
 _bin

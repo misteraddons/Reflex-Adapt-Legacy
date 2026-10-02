@@ -31,6 +31,7 @@ extern "C" {
 #endif
 
 void setupHardware(InputMode mode, const uint8_t interfaces, uint16_t deviceversion, const char* id);
+void setDeviceVersion(uint16_t deviceversion);
 void sendReport(void *data, uint8_t size, RumbleReport* rumble, const uint8_t interface);
 
 // LUFA USB device event handlers
