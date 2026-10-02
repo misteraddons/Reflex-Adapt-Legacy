@@ -1,0 +1,3 @@
+Build-time placeholder for //go:embed.
+
+The release workflow removes this file before embedding the real updater payload.

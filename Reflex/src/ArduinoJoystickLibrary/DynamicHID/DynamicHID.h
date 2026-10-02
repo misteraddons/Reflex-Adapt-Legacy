@@ -116,6 +116,7 @@ public:
   int begin(void);
   int SendReport(const void* data, int len);
   void AppendDescriptor(DynamicHIDSubDescriptor* node);
+  void setSerial(const char* serial) { gp_serial = serial; }
 
 protected:
   // Implementation of the PluggableUSBModule

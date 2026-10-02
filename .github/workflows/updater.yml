@@ -1,18 +1,27 @@
 name: Reflex Updater
 
+permissions:
+  contents: read
+
 on:
   workflow_call:
   workflow_dispatch:
-  push:
+  pull_request:
     paths:
+      - .github/workflows/updater.yml
       - reflex_updater/**
+  push:
+    branches: [legacy_v1]
+    paths:
+      - .github/workflows/updater.yml
+      - reflex_updater/**
+
+concurrency:
+  group: updater-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
-  GH_TOKEN: '${{ github.token }}'
-  MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
-  MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
-  ACTIONSECRET: ${{ secrets.ACTIONSECRET }}
 
 jobs:
   build:
@@ -31,12 +40,13 @@ jobs:
             cross: false
             
     runs-on: ${{ matrix.host }}
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
         with:
           targets: ${{ matrix.target }}
-      - run: cargo install cross --git https://github.com/cross-rs/cross
+      - run: cargo install cross --git https://github.com/cross-rs/cross --rev c5c9de4a8f54ed3f40c0ca9f9cc8be60c4bc4019
         if: ${{ matrix.cross }}
       - run: cross build --release --target ${{ matrix.target }}
         if: ${{ matrix.cross }}
@@ -58,7 +68,7 @@ jobs:
       #    tar --extract --directory . --strip-components 1 --file "$asset" "${release}"/rcodesign
       #    ./rcodesign sign --p12-file certificate.p12 --p12-password-file certificate.pwd reflex_updater/target/${{ matrix.target }}/release/reflex_updater
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: ${{ matrix.host == 'windows-latest' }}
         with:
           name: ${{ matrix.target }}
@@ -66,7 +76,7 @@ jobs:
             reflex_updater/target/${{ matrix.target }}/release/reflex_updater.exe
             reflex_updater/target/${{ matrix.target }}/release/reflex_updater.pdb
           if-no-files-found: error
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: ${{ matrix.host != 'windows-latest' }}
         with:
           name: ${{ matrix.target }}
@@ -77,8 +87,9 @@ jobs:
     name: Bundle
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           path: artifacts
     
@@ -87,11 +98,8 @@ jobs:
         working-directory: artifacts
         
       - name: Upload
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: reflex_updater
           path: artifacts/
           if-no-files-found: error
-
-
-

@@ -108,6 +108,12 @@ class Joystick_
       else
         _endpointPool[_endpointIndex]->SendReport((uint8_t*)&_GamepadReport+1, _hidReportSize);
     };
+
+    //Updates the USB serial number string. Only takes effect on the host after
+    //the USB device re-enumerates (it's read once during enumeration and cached).
+    //noinline: LTO (compiler option -flto) would otherwise duplicate the endpoint-pool lookup at each call site.
+    void setSerial(const char* serial) __attribute__((noinline));
+    
     virtual void resetState() = 0;
     //void setByte1(const uint8_t index, const bool value);
     void setByte1(const uint8_t value) { _GamepadReport.byte1 = value; };

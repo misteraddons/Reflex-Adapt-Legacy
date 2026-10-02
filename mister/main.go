@@ -13,7 +13,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"strings"
+	"syscall"
 	"time"
 )
 
@@ -22,77 +22,82 @@ const (
 	reflexBinName     = "reflex-linux-armv7"
 	adaptQuirks       = "0x16d0:0x127e:0x040"
 	adaptVidPid       = "0x16d0127e"
-	dbName            = "misteraddons/reflexadapt"
-	dbUrl             = "https://github.com/misteraddons/Reflex-Adapt/raw/main/reflexadapt.json.zip"
+	dbName            = "misteraddons/reflex-adapt-legacy"
+	dbUrl             = "https://raw.githubusercontent.com/misteraddons/Reflex-Adapt-Legacy/legacy_v1/reflex-adapt-legacy.json.zip"
 	configFolder      = config.ScriptsConfigFolder + "/reflex"
-	noDbFile          = configFolder + "/.no-db-reflexadapt"
+	noDbFile          = configFolder + "/.no-db-reflex-adapt-legacy"
 )
 
 //go:embed _files
 var updaterFiles embed.FS
 
 // extractUpdater extracts the embedded updater files to a temporary directory and returns the path to them.
-func extractUpdater() (string, error) {
-	tmp, err := os.MkdirTemp("", "reflex-updater-*")
+func extractUpdater() (tmp string, err error) {
+	tmp, err = os.MkdirTemp("", "reflex-updater-*")
 	if err != nil {
 		return "", err
 	}
+	defer func() {
+		if err != nil {
+			_ = os.RemoveAll(tmp)
+			tmp = ""
+		}
+	}()
 
 	topFiles, err := updaterFiles.ReadDir(".")
 	if err != nil {
 		return "", err
-	} else if len(topFiles) != 1 {
-		return "", fmt.Errorf("expected 1 top-level embedded folder, found %d files", len(topFiles))
+	}
+	if len(topFiles) != 1 || !topFiles[0].IsDir() {
+		return "", fmt.Errorf("expected one top-level embedded folder")
 	}
 
-	embedPrefix := topFiles[0].Name()
-
-	// this is a very complicated version of: cp -r <embedded files>/* <tmp folder>
-	err = fs.WalkDir(updaterFiles, embedPrefix, func(path string, entry fs.DirEntry, err error) error {
-		if path == embedPrefix {
+	source, err := fs.Sub(updaterFiles, topFiles[0].Name())
+	if err != nil {
+		return "", err
+	}
+	err = fs.WalkDir(source, ".", func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if path == "." {
 			return nil
 		}
 
-		writePath := filepath.Join(tmp, strings.TrimPrefix(path, embedPrefix+"/"))
-
+		writePath := filepath.Join(tmp, filepath.FromSlash(path))
 		if entry.IsDir() {
 			return os.MkdirAll(writePath, 0755)
 		}
 
-		tmpFile, err := os.Create(writePath)
+		input, err := source.Open(path)
 		if err != nil {
 			return err
 		}
-		defer func(tmpFile *os.File) {
-			_ = tmpFile.Close()
-		}(tmpFile)
-
-		file, err := updaterFiles.Open(path)
+		output, err := os.OpenFile(writePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 		if err != nil {
+			_ = input.Close()
 			return err
 		}
-		defer func(file fs.File) {
-			_ = file.Close()
-		}(file)
-
-		_, err = io.Copy(tmpFile, file)
-		if err != nil {
-			return err
+		_, copyErr := io.Copy(output, input)
+		closeOutputErr := output.Close()
+		closeInputErr := input.Close()
+		if copyErr != nil {
+			return copyErr
 		}
-
+		if closeOutputErr != nil {
+			return closeOutputErr
+		}
+		if closeInputErr != nil {
+			return closeInputErr
+		}
 		if filepath.Base(writePath) == reflexBinName {
-			err = os.Chmod(writePath, 0755)
-			if err != nil {
-				return err
-			}
+			return os.Chmod(writePath, 0755)
 		}
-
 		return nil
 	})
 	if err != nil {
 		return "", err
 	}
-
 	return tmp, nil
 }
 
@@ -155,70 +160,59 @@ func tryUpdateInis() error {
 // tryUpdateUboot checks if the user needs the usbhid.quirks option set in their u-boot.txt, prompts them if they want
 // to update it, and then updates it if they do. It is silent if u-boot.txt does not need updating.
 func tryUpdateUboot() (bool, error) {
-	//goland:noinspection GoBoolExpressions
-	if !quirksAreRequired {
-		fastUsb, err := mister.IsFastUsbPollActive()
-		if err != nil {
-			return false, err
-		}
-
-		if !fastUsb {
-			answer := utils.YesOrNoPrompt(
-				"Reflex Adapt works best with fast USB polling enabled in your system's u-boot.txt. Would you like to enable it?",
-			)
-			if !answer {
-				return false, nil
-			}
-
-			err = mister.EnableFastUsbPoll()
-			if err != nil {
-				return false, err
-			}
-
-			return true, nil
-		} else {
-			return false, nil
-		}
-	}
-
 	quirks, err := mister.GetUsbHidQuirks()
 	if err != nil {
 		return false, err
 	}
-
-	if !utils.Contains(quirks, adaptQuirks) {
-		answer := utils.YesOrNoPrompt(
-			"Reflex Adapt requires changes to your system's u-boot.txt for fast USB polling and composite USB devices. Would you like to update it?",
-		)
-		if !answer {
-			return false, nil
-		}
-
-		quirks = append(quirks, adaptQuirks)
-		err = mister.UpdateUsbHidQuirks(quirks)
-		if err != nil {
-			return false, err
-		}
-
-		err = mister.EnableFastUsbPoll()
-		if err != nil {
-			return false, err
-		}
-
-		return true, nil
+	fastUSB, err := mister.IsFastUsbPollActive()
+	if err != nil {
+		return false, err
 	}
 
-	return false, nil
+	missingQuirk, missingFastUSB := requiredUbootChanges(quirks, fastUSB)
+	if !missingQuirk && !missingFastUSB {
+		return false, nil
+	}
+
+	message := "Reflex Adapt works best with fast USB polling enabled in your system's u-boot.txt. Would you like to enable it?"
+	if missingQuirk {
+		message = "Reflex Adapt requires changes to your system's u-boot.txt for fast USB polling and composite USB devices. Would you like to update it?"
+	}
+	if !utils.YesOrNoPrompt(message) {
+		return false, nil
+	}
+
+	if missingQuirk {
+		quirks = append(quirks, adaptQuirks)
+		if err := mister.UpdateUsbHidQuirks(quirks); err != nil {
+			return false, err
+		}
+	}
+	if missingFastUSB {
+		if err := mister.EnableFastUsbPoll(); err != nil {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+func requiredUbootChanges(quirks []string, fastUSB bool) (missingQuirk, missingFastUSB bool) {
+	return quirksAreRequired && !utils.Contains(quirks, adaptQuirks), !fastUSB
 }
 
 // tryAddDb prompts if the user wants the updater repo db added to their downloader.ini file. Optionally, they can
 // say no and the check will be disabled.
 func tryAddDb() (bool, error) {
-	//_ = os.MkdirAll(configFolder, 0755)
-	//
-	//if _, err := os.Stat(noDbFile); err == nil {
-	//	return false, nil
-	//}
+	err := os.MkdirAll(configFolder, 0755)
+	if err != nil {
+		return false, err
+	}
+
+	if _, err := os.Stat(noDbFile); err == nil {
+		return false, nil
+	} else if !os.IsNotExist(err) {
+		return false, err
+	}
 
 	downloadIni, err := mister.LoadDownloaderIni()
 	if err != nil {
@@ -254,14 +248,8 @@ func clearTerminal() {
 	fmt.Print("\033[H\033[2J")
 }
 
-func main() {
+func run() int {
 	wasError := false
-
-	//err := tryUpdateInis()
-	//if err != nil {
-	//	fmt.Printf("An error occurred while updating .ini files: %s\n", err)
-	//	wasError = true
-	//}
 
 	updated, err := tryAddDb()
 	if err != nil {
@@ -278,17 +266,14 @@ func main() {
 		wasError = true
 	}
 	if updated {
-		fmt.Printf("Writing u-boot.txt changes to disk")
-		wait := 0
-		for wait < 5 {
-			fmt.Printf(".")
-			wait++
-			time.Sleep(1 * time.Second)
+		fmt.Print("Writing u-boot.txt changes to disk")
+		for wait := 0; wait < 5; wait++ {
+			fmt.Print(".")
+			time.Sleep(time.Second)
 		}
 		fmt.Println()
-
 		fmt.Println("Please power cycle your MiSTer for these changes to take effect.")
-		os.Exit(0)
+		return 0
 	}
 
 	if wasError {
@@ -298,9 +283,13 @@ func main() {
 	updaterDir, err := extractUpdater()
 	if err != nil {
 		fmt.Printf("An error occurred while extracting the updater: %s\n", err)
-		_ = cleanupUpdater(updaterDir)
-		os.Exit(1)
+		return 1
 	}
+	defer func() {
+		if err := cleanupUpdater(updaterDir); err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to remove temporary updater files: %s\n", err)
+		}
+	}()
 
 	clearTerminal()
 
@@ -310,23 +299,32 @@ func main() {
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 
-	// forward signal to the updater
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs)
-	go func(cmd *exec.Cmd) {
-		sig := <-sigs
-		if cmd.Process != nil {
-			_ = cmd.Process.Signal(sig)
+	done := make(chan struct{})
+	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sigs)
+	go func() {
+		for {
+			select {
+			case sig := <-sigs:
+				if cmd.Process != nil {
+					_ = cmd.Process.Signal(sig)
+				}
+			case <-done:
+				return
+			}
 		}
-	}(cmd)
+	}()
 
 	err = cmd.Run()
+	close(done)
 	if err != nil {
 		fmt.Printf("An error occurred while running the updater: %s\n", err)
-		_ = cleanupUpdater(updaterDir)
-		os.Exit(1)
+		return 1
 	}
+	return 0
+}
 
-	_ = cleanupUpdater(updaterDir)
-	os.Exit(0)
+func main() {
+	os.Exit(run())
 }

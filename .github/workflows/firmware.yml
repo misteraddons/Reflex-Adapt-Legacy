@@ -1,27 +1,48 @@
 name: Firmware
 
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
   workflow_call:
-  push:
+  pull_request:
     paths:
+      - .github/workflows/firmware.yml
       - Makefile
       - Reflex/**
+      - tests/**
+  push:
+    branches: [legacy_v1]
+    paths:
+      - .github/workflows/firmware.yml
+      - Makefile
+      - Reflex/**
+      - tests/**
+
+concurrency:
+  group: firmware-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     name: Build Firmware Combinations
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install Arduino CLI
-        uses: arduino/setup-arduino-cli@v1
-      - name: Install arduino platform
+        uses: arduino/setup-arduino-cli@81d310742121c928ea9c8bbd407b4217b432ae02 # v2
+      - name: Test USB hot-swap reports
+        run: python3 -m unittest discover -s tests -v
+      - name: Install Arduino base platform
         run: arduino-cli core install arduino:avr
+      - name: Install Arduino LUFA platform
+        run: arduino-cli core install Arduino-LUFA:avr --additional-urls https://github.com/Palatis/Arduino-Lufa/raw/master/package_arduino-lufa_index.json
       - name: Build All
         run: make all
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: firmware
           path: firmware/

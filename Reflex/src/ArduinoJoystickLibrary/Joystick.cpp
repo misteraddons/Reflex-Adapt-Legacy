@@ -47,6 +47,12 @@ uint8_t Joystick_::getNextIndex(const char* serial, const uint8_t totalControlle
   //returns the selected endpoint
   return i;
 }
+
+void Joystick_::setSerial(const char* serial)
+{
+  _endpointPool[_endpointIndex]->setSerial(serial);
+}
+
 //static properties
 bool Joystick_::_useComposite(false);
 DynamicHID_* Joystick_::_endpointPool[MAX_ENDPOINTS];

@@ -1,5 +1,8 @@
 name: Release
 
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
     inputs:
@@ -26,34 +29,43 @@ on:
 jobs:
   updater:
     name: Build Updater Tool
-    uses: misteraddons/Reflex-Adapt/.github/workflows/updater.yml@main
-    secrets: inherit
+    uses: ./.github/workflows/updater.yml
   firmware:
     name: Build Firmware
-    uses: misteraddons/Reflex-Adapt/.github/workflows/firmware.yml@main
+    uses: ./.github/workflows/firmware.yml
   assemble:
     name: Create Release
     runs-on: ubuntu-latest
     needs: [ updater, firmware ]
+    timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
-          go-version: '1.20'
+          go-version: '1.25.x'
           cache-dependency-path: |
              mister/go.sum
       - name: Download Updater
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           path: updater
           name: reflex_updater
       - name: Download Firmware
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           name: firmware
           path: firmware
+
+      - name: Validate release tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]]; then
+            echo "Invalid release tag: $RELEASE_TAG" >&2
+            exit 1
+          fi
 
       - name: Build Release
         run: |
@@ -69,33 +81,45 @@ jobs:
           chmod +x ${RELEASE_DIR}/reflex-macos ${RELEASE_DIR}/reflex-linux-armv7 ${RELEASE_DIR}/reflex-linux-x86_64
           ln -s ${RELEASE_DIR} reflex-${{ inputs.tag }}
 
-      - name: Zip Archive
-        run: zip -r reflex-${{ inputs.tag }}.zip reflex-${{ inputs.tag }}/
-      - name: Tar Archive
-        run: tar -czvhf reflex-${{ inputs.tag }}.tar.gz reflex-${{ inputs.tag }}/
-
       - name: Build MiSTer Wrapper
         run: |
           RELEASE_DIR=distribution/${{ inputs.tag }}
+          rm -rf mister/_files/* mister/_bin
+          mkdir -p mister/_files mister/_bin
           cp -v ${RELEASE_DIR}/reflex-linux-armv7 mister/_files
           cp -v ${RELEASE_DIR}/manifest.txt mister/_files
           cp -rv ${RELEASE_DIR}/firmware mister/_files
           cd mister
-          env GOARCH=arm GOARM=7 go build -ldflags="-s -w" -o _bin/reflex_updater.sh
+          env CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -trimpath -ldflags="-s -w" -o _bin/reflex_updater.sh
           cp -v _bin/reflex_updater.sh ../${RELEASE_DIR}/reflex_updater.sh
 
+      - name: Zip Archive
+        run: zip -r "reflex-${{ inputs.tag }}.zip" "reflex-${{ inputs.tag }}/"
+      - name: Tar Archive
+        run: tar -czvhf "reflex-${{ inputs.tag }}.tar.gz" "reflex-${{ inputs.tag }}/"
+
+      - name: Build MiSTer database pinned to release source
+        run: python3 mister/generate_repo.py "${{ inputs.tag }}" --files-ref "${{ github.sha }}" --updater mister/_bin/reflex_updater.sh
+
+      - name: Commit generated distribution
+        id: distribution_commit
+        uses: EndBug/add-and-commit@a94899bca583c204427a224a7af87c02f9b325d5 # v9
+        if: ${{ inputs.update_distribution }}
+        with:
+          message: "release: stage ${{ inputs.tag }} distribution"
+          add: |
+            distribution/${{ inputs.tag }}/* -f -A
+            reflex-adapt-legacy.json.zip
+
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: |
             reflex-${{ inputs.tag }}.tar.gz
             reflex-${{ inputs.tag }}.zip
             mister/_bin/reflex_updater.sh
+            reflex-adapt-legacy.json.zip
           tag_name: ${{ inputs.tag }}
+          target_commitish: ${{ steps.distribution_commit.outputs.commit_long_sha || github.sha }}
           body: ${{ inputs.release_desc }}
           draft: ${{ inputs.draft_release }}
-      - name: Git Commit
-        uses: EndBug/add-and-commit@v9
-        if: ${{ inputs.update_distribution }}
-        with:
-          add: distribution/${{ inputs.tag }}/* -f -A
